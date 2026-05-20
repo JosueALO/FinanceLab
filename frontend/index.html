@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Finance Lab</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#050505">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiMwNTA1MDUiLz48dGV4dCB4PSI1MCUiIHk9IjUyJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMjAiIGZvbnQtd2VpZ2h0PSI5MDAiIGZpbGw9IiMyZGQ0YmYiPkZMPC90ZXh0Pjwvc3ZnPg==">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiMwNTA1MDUiLz48dGV4dCB4PSI1MCUiIHk9IjUyJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMjAiIGZvbnQtd2VpZ2h0PSI5MDAiIGZpbGw9IiMyZGQ0YmYiPkZMPC90ZXh0Pjwvc3ZnPg==">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;500;800&display=swap" rel="stylesheet">
+    <style>
+        body { background: #050505; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; transition: background-color 0.3s ease, color 0.3s ease; }
+        .glass-card { background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 8px; transition: background-color 0.3s ease; }
+        .accent-glow { color: #2dd4bf; text-shadow: 0 0 8px rgba(45, 212, 191, 0.3); }
+        input, select { background: #111 !important; border: 1px solid #222 !important; color: white !important; }
+        input:focus, select:focus { border-color: #2dd4bf !important; outline: none; }
+        .pie-chart { border-radius: 50%; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .progress-bar { height: 6px; border-radius: 3px; background: #1f1f1f; overflow: hidden; }
+        .progress-fill { height: 100%; transition: width 0.5s ease; }
+        
+        body.light-mode { background: #f8fafc; color: #0f172a; }
+        body.light-mode .glass-card { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        body.light-mode .bg-zinc-900, body.light-mode .bg-black, body.light-mode .bg-zinc-800 { background-color: #f1f5f9 !important; border-color: #cbd5e1 !important; color: #0f172a !important; }
+        body.light-mode .bg-zinc-900\/50 { background-color: #f8fafc !important; }
+        body.light-mode .text-zinc-500, body.light-mode .text-zinc-400, body.light-mode .text-zinc-600 { color: #64748b !important; }
+        body.light-mode .text-zinc-300, body.light-mode .text-zinc-200, body.light-mode .text-white { color: #0f172a !important; }
+        body.light-mode .border-zinc-800, body.light-mode .border-zinc-700 { border-color: #e2e8f0 !important; }
+        body.light-mode input, body.light-mode select { background: #ffffff !important; border: 1px solid #cbd5e1 !important; color: #0f172a !important; }
+        body.light-mode .divide-zinc-900 > :not([hidden]) ~ :not([hidden]) { border-color: #e2e8f0 !important; }
+        body.light-mode .hover\:bg-zinc-900\/50:hover, body.light-mode .focus-within\:bg-zinc-900\/50:focus-within { background-color: #e2e8f0 !important; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(e => console.log(e));</script>
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        const API_URL = "/api"; // <--- REEMPLAZA ESTO
+
+        const apiCall = async (action, payload = null) => {
+            const response = await fetch(API_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, payload }) });
+            const text = await response.text();
+            try { const res = JSON.parse(text); if (!res.success) throw new Error(res.error); return res.data; } 
+            catch (e) { throw new Error("Error del Servidor."); }
+        };
+
+        const COLORES_PASTEL = ['#2dd4bf', '#0ea5e9', '#8b5cf6', '#f43f5e', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#14b8a6', '#6366f1'];
+        const getHoyStr = () => { const hoy = new Date(); const offset = hoy.getTimezoneOffset() * 60000; return (new Date(hoy - offset)).toISOString().split('T')[0]; };
+        const formatoMoneda = (num) => Number(num || 0).toLocaleString('es-MX', {style: 'currency', currency: 'MXN', minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        const IconEdit = () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>;
+        const IconDelete = () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>;
+        const IconSun = () => <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>;
+        const IconMoon = () => <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>;
+        const IconLaunch = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>;
+
+        // === PESTAÑA: RECORDATORIOS ===
+        const RecordatoriosTab = ({ logs, onEdit, loadData }) => {
+            const [viewScope, setViewScope] = useState('Compartido');
+            const [busqueda, setBusqueda] = useState('');
+            const [lanzandoId, setLanzandoId] = useState(null);
+            const [deletingRecId, setDeletingRecId] = useState(null); 
+            const [fechaLanzamiento, setFechaLanzamiento] = useState(getHoyStr());
+
+            const getEstado = (fechaStr) => {
+                if(!fechaStr) return { text: '', color: '' };
+                const [d,m,y] = fechaStr.split('/');
+                const f = new Date(y, m-1, d); const h = new Date();
+                f.setHours(0,0,0,0); h.setHours(0,0,0,0);
+                const diff = Math.ceil((f - h) / (1000*60*60*24));
+                if (diff < 0) return { text: `Caducado (${Math.abs(diff)}d)`, color: 'text-rose-500 font-bold bg-rose-500/10 px-2 py-1 rounded' };
+                if (diff === 0) return { text: '¡Vence Hoy!', color: 'text-amber-500 font-bold bg-amber-500/10 px-2 py-1 rounded' };
+                if (diff === 1) return { text: 'Mañana', color: 'text-teal-400' };
+                return { text: `En ${diff} días`, color: 'text-zinc-500' };
+            };
+
+            const ejecutando = (id) => { apiCall('lanzarRecordatorio', { id: id, fecha: fechaLanzamiento }).then(() => { setLanzandoId(null); loadData(); }); };
+
+            const filteredLogs = useMemo(() => {
+                let mapeados = logs.filter(l => {
+                    if (l.Tipo_Operacion === 'Transferencia') {
+                        if (viewScope === 'Compartido') return false; 
+                        if (viewScope === 'Josue' && l.Registrador !== 'Josué') return false;
+                        if (viewScope === 'Abi' && l.Registrador !== 'Abigail') return false; 
+                    } else {
+                        if (viewScope === 'Compartido' && l.Tipo_Gasto && l.Tipo_Gasto.includes('Personal')) return false;
+                        if (viewScope === 'Josue' && !(Number(l.Participacion_Josue) > 0)) return false;
+                        if (viewScope === 'Abi' && !(Number(l.Participacion_Abi) > 0)) return false;
+                    }
+                    return true;
+                });
+                if (busqueda) {
+                    const q = busqueda.toLowerCase();
+                    mapeados = mapeados.filter(l => Object.values(l).some(val => String(val).toLowerCase().includes(q)));
+                }
+                return mapeados.sort((a,b) => {
+                    const pa = (s) => { const [d,m,y]=s.split('/'); return new Date(y,m-1,d).getTime(); };
+                    return pa(a.Fecha_Compra) - pa(b.Fecha_Compra);
+                });
+            }, [logs, viewScope, busqueda]);
+
+            return (
+                <div className="space-y-6 fade-in">
+                    <div className="glass-card p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="flex gap-2 bg-zinc-900/50 p-1 rounded border border-zinc-800 w-full md:w-auto">
+                            {['Compartido', 'Josue', 'Abi'].map(s=><button key={s} onClick={() => setViewScope(s)} className={`px-4 py-2 text-[10px] font-bold uppercase rounded flex-1 md:flex-none transition-colors ${viewScope === s ? 'bg-[#2dd4bf] text-black' : 'text-zinc-500 hover:text-white'}`}>{s==='Compartido'?'Hogar':s}</button>)}
+                        </div>
+                        <input className="w-full md:w-72 p-2 text-xs rounded bg-black border border-zinc-800 outline-none text-zinc-300" placeholder="🔍 Buscar recordatorio..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} />
+                    </div>
+
+                    <div className="glass-card overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-[11px] whitespace-nowrap">
+                                <thead className="bg-zinc-900 text-zinc-400 uppercase font-bold">
+                                    <tr><th className="p-3">Programado</th><th className="p-3">Estado</th><th className="p-3">Concepto</th><th className="p-3 text-teal-400">Categoría</th><th className="p-3">Cuenta Origen</th><th className="p-3 text-right">Monto Parcial</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-900">
+                                    {filteredLogs.map((log, idx) => {
+                                        const estado = getEstado(log.Fecha_Compra);
+                                        const colorFila = log.Tipo_Operacion === 'Ingreso' ? 'text-teal-400' : (log.Tipo_Operacion === 'Transferencia' ? 'text-indigo-400' : 'text-zinc-200');
+                                        
+                                        return (
+                                            <tr key={idx} tabIndex="0" className="hover:bg-zinc-900/50 group focus-within:bg-zinc-900/50">
+                                                <td className="p-3 text-zinc-500 font-mono">{log.Fecha_Compra}</td>
+                                                <td className="p-3"><span className={estado.color}>{estado.text}</span></td>
+                                                <td className={`p-3 font-bold ${colorFila}`}>
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{log.Compra}</span>
+                                                        <span className="text-[8px] border border-zinc-700 px-1 rounded text-zinc-500 uppercase">{log.Tipo_Operacion}</span>
+                                                        <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-2 ml-2">
+                                                            <button onClick={() => onEdit(log)} className="text-zinc-500 hover:text-teal-400"><IconEdit /></button>
+                                                            {deletingRecId === log.ID_Unico ? (
+                                                                <div className="flex gap-1 bg-black p-1 rounded border border-rose-500/50">
+                                                                    <button onClick={() => { setDeletingRecId(null); apiCall('eliminarGasto', log.ID_Unico).then(()=>loadData()); }} className="text-rose-500 px-2 font-bold text-[9px] hover:bg-rose-500/20 rounded">Eliminar</button>
+                                                                    <button onClick={() => setDeletingRecId(null)} className="text-zinc-500 px-1 text-[9px] hover:bg-zinc-800 rounded">Cancelar</button>
+                                                                </div>
+                                                            ) : (
+                                                                <button onClick={() => setDeletingRecId(log.ID_Unico)} className="text-zinc-500 hover:text-rose-500"><IconDelete /></button>
+                                                            )}
+                                                            <button onClick={() => { setLanzandoId(log.ID_Unico); setFechaLanzamiento(getHoyStr()); }} className="text-indigo-400 hover:text-white bg-indigo-500/20 px-2 py-1 rounded flex gap-1 items-center font-bold"><IconLaunch /> Ejecutar</button>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {lanzandoId === log.ID_Unico && (
+                                                        <div className="mt-2 p-2 bg-black rounded border border-indigo-500/50 flex gap-2 items-center fade-in max-w-sm">
+                                                            <span className="text-[9px] text-indigo-300 uppercase font-bold">Lanzar con fecha:</span>
+                                                            <input type="date" className="p-1 rounded text-xs bg-zinc-900 text-white outline-none" value={fechaLanzamiento} onChange={e=>setFechaLanzamiento(e.target.value)} />
+                                                            <button onClick={()=>ejecutando(log.ID_Unico)} className="bg-indigo-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-indigo-400">Confirmar</button>
+                                                            <button onClick={()=>setLanzandoId(null)} className="text-zinc-500 hover:text-white text-xs px-2">✕</button>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="p-3 text-zinc-400"><span className="text-[9px] text-zinc-600 block">{log.MacroCategoria}</span>{log.Categoria}</td>
+                                                <td className="p-3 text-zinc-500">{log.Cuenta_Origen} {log.Cuenta_Destino && `➔ ${log.Cuenta_Destino}`}</td>
+                                                <td className="p-3 font-mono text-teal-400 text-right">{formatoMoneda(log.Monto_Parcial)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {filteredLogs.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-zinc-600 font-mono">No hay recordatorios pendientes.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // === PESTAÑA: GESTOR DE CUENTAS ===
+        const CuentasManager = ({ cuentas, logs, loadData }) => {
+            const [localCuentas, setLocalCuentas] = useState(cuentas);
+            const [saving, setSaving] = useState(false);
+            const [form, setForm] = useState({ nombre: '', tipo: 'Activo', saldoInicial: '', propietario: 'Josué', diaCorte: '' });
+            const [deletingCuenta, setDeletingCuenta] = useState(null); 
+
+            const handleEdit = (idx, field, val) => { const updated = [...localCuentas]; updated[idx][field] = val; setLocalCuentas(updated); };
+            const agregarCuenta = () => { if (!form.nombre.trim()) return; setLocalCuentas([...localCuentas, { ...form, nombre: form.nombre.trim() }]); setForm({ nombre: '', tipo: 'Activo', saldoInicial: '', propietario: 'Josué', diaCorte: '' }); };
+            const eliminarCuenta = (nombre) => { setLocalCuentas(localCuentas.filter(c => c.nombre !== nombre)); setDeletingCuenta(null); };
+            const guardar = () => { setSaving(true); apiCall('guardarCuentas', localCuentas).then(() => { setSaving(false); loadData(); }); };
+
+            return (
+                <div className="glass-card p-6 md:p-8 fade-in space-y-6">
+                    <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+                        <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Gestor de Cuentas</h2>
+                        <button onClick={guardar} className="bg-[#2dd4bf] text-black px-6 py-2 text-[10px] font-black uppercase rounded hover:bg-white">{saving ? 'Guardando...' : 'Aplicar Cambios'}</button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-zinc-900/50 p-4 rounded border border-zinc-800">
+                        <div><label className="text-[9px] uppercase text-zinc-500 mb-1 block">Nombre</label><input className="w-full p-2 text-xs rounded bg-black" placeholder="Ej. Nu" value={form.nombre} onChange={e=>setForm({...form, nombre: e.target.value})} /></div>
+                        <div><label className="text-[9px] uppercase text-zinc-500 mb-1 block">Tipo</label><select className="w-full p-2 text-xs rounded bg-black" value={form.tipo} onChange={e=>setForm({...form, tipo: e.target.value})}><option>Activo</option><option>Pasivo</option></select></div>
+                        <div><label className="text-[9px] uppercase text-zinc-500 mb-1 block">Propietario</label><select className="w-full p-2 text-xs rounded bg-black" value={form.propietario} onChange={e=>setForm({...form, propietario: e.target.value})}><option>Josué</option><option>Abi</option><option>Hogar</option></select></div>
+                        <div>
+                            <label className="text-[9px] uppercase text-zinc-500 mb-1 block">Día Corte</label>
+                            {form.tipo === 'Pasivo' ? (
+                                <input type="number" className="w-full p-2 text-xs rounded bg-black" placeholder="Ej. 19" value={form.diaCorte} onChange={e=>setForm({...form, diaCorte: e.target.value})} />
+                            ) : (
+                                <div className="w-full p-2 text-xs rounded bg-black text-zinc-600 font-mono cursor-not-allowed text-center">N/A</div>
+                            )}
+                        </div>
+                        <div><label className="text-[9px] uppercase text-zinc-500 mb-1 block">Inicial</label><div className="flex gap-2"><input type="number" step="0.01" className="w-full p-2 text-xs rounded bg-black font-mono text-teal-400" placeholder="0.00" value={form.saldoInicial} onChange={e=>setForm({...form, saldoInicial: e.target.value})} /><button onClick={agregarCuenta} className="bg-zinc-800 px-4 rounded text-white font-bold hover:bg-teal-500">+</button></div></div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {localCuentas.map((c, i) => {
+                            let balance = Number(c.saldoInicial) || 0;
+                            logs.forEach(l => {
+                                const m = Number(l.Monto_Parcial) || 0;
+                                if (l.Cuenta_Origen === c.nombre) {
+                                    if (l.Tipo_Operacion === 'Gasto' || l.Tipo_Operacion === 'Transferencia') balance -= m;
+                                    else if (l.Tipo_Operacion === 'Ingreso') balance += m;
+                                }
+                                if (l.Tipo_Operacion === 'Transferencia' && l.Cuenta_Destino === c.nombre) balance += m;
+                            });
+                            return (
+                                <div key={i} tabIndex="0" className="bg-zinc-900/50 p-4 rounded border border-zinc-800 space-y-3 relative group focus-within:bg-zinc-900/80 transition-colors">
+                                    {deletingCuenta === c.nombre ? (
+                                        <div className="absolute top-2 right-2 flex gap-1 z-10 bg-black p-1 rounded border border-rose-500/50">
+                                            <button onClick={()=>eliminarCuenta(c.nombre)} className="text-rose-500 text-[9px] font-bold px-2 hover:bg-rose-500/20 rounded">Eliminar</button>
+                                            <button onClick={()=>setDeletingCuenta(null)} className="text-zinc-500 text-[9px] px-2 hover:bg-zinc-800 rounded">Cancelar</button>
+                                        </div>
+                                    ) : (
+                                        <button onClick={()=>setDeletingCuenta(c.nombre)} className="absolute top-2 right-2 text-zinc-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"><IconDelete /></button>
+                                    )}
+
+                                    <div className="flex justify-between pr-4">
+                                        <input className="bg-transparent font-bold text-teal-400 outline-none w-1/2" value={c.nombre} onChange={e=>handleEdit(i, 'nombre', e.target.value)} />
+                                        <div className="flex flex-col items-end">
+                                            <select className="bg-transparent text-[9px] uppercase text-zinc-500 text-right outline-none" value={c.propietario} onChange={e=>handleEdit(i, 'propietario', e.target.value)}><option>Josué</option><option>Abi</option><option>Hogar</option></select>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex-1"><label className="text-[8px] text-zinc-600 block uppercase">Inicial</label><input type="number" step="0.01" className="bg-transparent font-mono text-sm w-full border-b border-zinc-800 outline-none" value={c.saldoInicial} onChange={e=>handleEdit(i, 'saldoInicial', e.target.value)} /></div>
+                                        <div className="flex-1"><label className="text-[8px] text-zinc-600 block uppercase">Corte</label>
+                                            {c.tipo.trim() === 'Pasivo' ? <input type="number" className="bg-transparent font-mono text-sm w-full border-b border-zinc-800 outline-none" value={c.diaCorte} onChange={e=>handleEdit(i, 'diaCorte', e.target.value)} /> : <span className="font-mono text-sm text-zinc-500 block mt-1">N/A</span>}
+                                        </div>
+                                    </div>
+                                    <div className="border-t border-zinc-800 pt-2 flex justify-between items-center">
+                                        <span className={`text-[8px] uppercase px-2 py-1 rounded ${c.tipo.trim()==='Pasivo'?'bg-rose-500/20 text-rose-400':'bg-teal-500/20 text-teal-400'}`}>{c.tipo}</span>
+                                        <p className={`font-mono font-bold text-lg ${c.tipo.trim()==='Pasivo'?'text-rose-400':'text-zinc-800'}`}>{formatoMoneda(c.tipo.trim()==='Pasivo' ? balance * -1 : balance)}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        // === PESTAÑA: TABLERO ===
+        const Dashboard = ({ rawLogs, presupuesto, cuentas, onEdit }) => {
+            const [viewScope, setViewScope] = useState('Compartido');
+            const [deletingLog, setDeletingLog] = useState(null);
+            const [tablaFiltroTipo, setTablaFiltroTipo] = useState('Gasto');
+            const [busqueda, setBusqueda] = useState('');
+            const [filtroCategoriaTabla, setFiltroCategoriaTabla] = useState(null);
+
+            const mapCuentas = useMemo(() => { let map = {}; cuentas.forEach(c => map[c.nombre] = c.propietario); return map; }, [cuentas]);
+            const periodos = useMemo(() => [...new Set(rawLogs.map(l => l.Periodo_Pago))].filter(Boolean).sort((a, b) => { try { const pA = String(a).split('/'); const pB = String(b).split('/'); return new Date(pB[2], pB[1]-1, pB[0]) - new Date(pA[2], pA[1]-1, pA[0]); } catch(e) { return 0; } }), [rawLogs]);
+            const getPeriodoActual = () => { const hoy = new Date(); let m = hoy.getMonth(), a = hoy.getFullYear(); if (hoy.getDate() > 19) m += 1; const u = new Date(a, m + 1, 0); return `${String(u.getDate()).padStart(2, '0')}/${String(u.getMonth() + 1).padStart(2, '0')}/${u.getFullYear()}`; };
+            const [periodoActivo, setPeriodoActivo] = useState(periodos.includes(getPeriodoActual()) ? getPeriodoActual() : (periodos[0] || getPeriodoActual()));
+            
+            const [hiddenTipos, setHiddenTipos] = useState([]);
+            useEffect(() => { setHiddenTipos([]); setFiltroCategoriaTabla(null); }, [viewScope, periodoActivo]);
+
+            const logsGlobal = useMemo(() => rawLogs.filter(l => l.Periodo_Pago === periodoActivo), [rawLogs, periodoActivo]);
+            const logsGrafico = useMemo(() => logsGlobal.filter(l => {
+                if (l.Tipo_Operacion === 'Transferencia' || l.Tipo_Operacion === 'Ingreso') return false; 
+                if (viewScope === 'Compartido') return !l.Tipo_Gasto.includes('Personal');
+                if (viewScope === 'Josue') return Number(l.Participacion_Josue) > 0;
+                if (viewScope === 'Abi') return Number(l.Participacion_Abi) > 0;
+                return false;
+            }), [logsGlobal, viewScope]);
+
+            const availableTipos = useMemo(() => [...new Set(logsGrafico.map(l => l.Tipo_Gasto))], [logsGrafico]);
+            const logsGraficoFiltrado = useMemo(() => logsGrafico.filter(l => !hiddenTipos.includes(l.Tipo_Gasto)), [logsGrafico, hiddenTipos]);
+
+            const tablaLogs = useMemo(() => {
+                let mapeados = logsGlobal.filter(l => {
+                    if (tablaFiltroTipo !== 'Todos' && l.Tipo_Operacion !== tablaFiltroTipo) return false;
+                    if (l.Tipo_Operacion !== 'Transferencia') {
+                        if (viewScope === 'Compartido' && l.Tipo_Gasto && l.Tipo_Gasto.includes('Personal')) return false;
+                        if (viewScope === 'Josue' && !(Number(l.Participacion_Josue) > 0)) return false;
+                        if (viewScope === 'Abi' && !(Number(l.Participacion_Abi) > 0)) return false;
+                    }
+                    if (filtroCategoriaTabla && l.Categoria !== filtroCategoriaTabla) return false;
+                    return true;
+                });
+
+                if (busqueda.trim() !== '') {
+                    const q = busqueda.toLowerCase();
+                    mapeados = mapeados.filter(l => 
+                        (l.Compra && l.Compra.toLowerCase().includes(q)) || (l.Categoria && l.Categoria.toLowerCase().includes(q)) ||
+                        (l.MacroCategoria && l.MacroCategoria.toLowerCase().includes(q)) || (l.Cuenta_Origen && l.Cuenta_Origen.toLowerCase().includes(q)) ||
+                        (l.Cuenta_Destino && l.Cuenta_Destino.toLowerCase().includes(q)) || (l.Fecha_Compra && l.Fecha_Compra.includes(q)) ||
+                        (l.Monto_Total && String(l.Monto_Total).includes(q))
+                    );
+                }
+                return mapeados;
+            }, [logsGlobal, tablaFiltroTipo, viewScope, busqueda, filtroCategoriaTabla]);
+
+            const deudaAbi = logsGlobal.reduce((acc, curr) => {
+                const monto = Number(curr.Monto_Parcial) || 0;
+                if (curr.Tipo_Operacion === 'Transferencia') {
+                    if (mapCuentas[curr.Cuenta_Origen] === 'Abi' && mapCuentas[curr.Cuenta_Destino] === 'Josué') return acc - monto;
+                    if (mapCuentas[curr.Cuenta_Origen] === 'Josué' && mapCuentas[curr.Cuenta_Destino] === 'Abi') return acc + monto;
+                    return acc;
+                }
+                if (curr.Tipo_Operacion === 'Gasto') {
+                    const pJ = Number(curr.Participacion_Josue) || 0, pA = Number(curr.Participacion_Abi) || 0;
+                    const prop = mapCuentas[curr.Cuenta_Origen];
+                    if (prop === 'Josué') return acc + pA;
+                    if (prop === 'Abi') return acc - pJ;
+                }
+                return acc;
+            }, 0);
+
+            const showDeuda = (viewScope === 'Compartido' && deudaAbi === 0) || (viewScope === 'Josue' && deudaAbi < 0) || (viewScope === 'Abi' && deudaAbi > 0);
+            const totalGastoView = logsGraficoFiltrado.reduce((acc, l) => acc + (viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi))), 0);
+
+            const categoriasData = useMemo(() => {
+                let map = {};
+                logsGraficoFiltrado.forEach(l => {
+                    let amt = viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi));
+                    if (amt > 0) map[l.Categoria] = (map[l.Categoria] || 0) + amt;
+                });
+                return Object.keys(map).map(k => ({ nombre: k, total: map[k] })).sort((a,b) => b.total - a.total);
+            }, [logsGraficoFiltrado, viewScope]);
+
+            const currentPresupuesto = presupuesto[viewScope] || {};
+            const categoriasParaRender = useMemo(() => {
+                let cats = [...categoriasData]; 
+                Object.keys(currentPresupuesto).forEach(catName => { if (currentPresupuesto[catName] > 0 && !cats.find(c => c.nombre === catName)) cats.push({ nombre: catName, total: 0 }); });
+                return cats;
+            }, [categoriasData, currentPresupuesto]);
+
+            const construirConicGradient = () => {
+                if (categoriasData.length === 0 || totalGastoView === 0) return "conic-gradient(#1f1f1f 0% 100%)";
+                let gradientArr = [], porcentajeAcumulado = 0;
+                categoriasData.forEach((cat, index) => {
+                    const pct = (cat.total / totalGastoView) * 100;
+                    gradientArr.push(`${COLORES_PASTEL[index % COLORES_PASTEL.length]} ${porcentajeAcumulado}% ${porcentajeAcumulado + pct}%`);
+                    porcentajeAcumulado += pct;
+                });
+                return `conic-gradient(${gradientArr.join(', ')})`;
+            };
+
+            const [sortConfig, setSortConfig] = useState({ key: 'Fecha_Compra', direction: 'desc' });
+            
+            const requestSort = (key) => {
+                let direction = 'asc';
+                if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+                setSortConfig({ key, direction });
+            };
+
+            const sortedLogs = useMemo(() => {
+                let sortableItems = [...tablaLogs];
+                sortableItems.sort((a, b) => {
+                    let valA = a[sortConfig.key]; let valB = b[sortConfig.key];
+                    if (sortConfig.key === 'Fecha_Compra') {
+                        // FIX: Ordenamiento con desempate de hora ultra-preciso
+                        const parseD = (s) => { if(!s) return 0; const [d,m,y] = s.split('/'); return new Date(y, m-1, d).getTime(); };
+                        const parseDT = (s) => { 
+                            if(!s) return 0; 
+                            const p = s.split(' ');
+                            if(p.length===1) return parseD(s);
+                            const [d,m,y] = p[0].split('/');
+                            const timeParts = p[1].split(':');
+                            return new Date(y, m-1, d, timeParts[0]||0, timeParts[1]||0, timeParts[2]||0).getTime();
+                        };
+                        valA = parseD(a.Fecha_Compra); valB = parseD(b.Fecha_Compra);
+                        if (valA === valB) {
+                            let timeA = parseDT(a.Fecha_Registro); let timeB = parseDT(b.Fecha_Registro);
+                            if(timeA !== timeB) return sortConfig.direction === 'asc' ? timeA - timeB : timeB - timeA;
+                        }
+                    } else if (sortConfig.key === 'Aporte') {
+                        valA = viewScope === 'Compartido' ? Number(a.Monto_Parcial) : (viewScope === 'Josue' ? Number(a.Participacion_Josue) : Number(a.Participacion_Abi));
+                        valB = viewScope === 'Compartido' ? Number(b.Monto_Parcial) : (viewScope === 'Josue' ? Number(b.Participacion_Josue) : Number(b.Participacion_Abi));
+                    } else if (sortConfig.key === 'Monto_Total') {
+                        valA = Number(a.Monto_Total) || 0; valB = Number(b.Monto_Total) || 0;
+                    } else {
+                        valA = String(valA || '').toLowerCase(); valB = String(valB || '').toLowerCase();
+                    }
+                    if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                return sortableItems;
+            }, [tablaLogs, sortConfig, viewScope]);
+
+            return (
+                <div className="space-y-6 fade-in">
+                    <div className="glass-card p-4 flex flex-col gap-3">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div className="flex gap-2 bg-zinc-900/50 p-1 rounded border border-zinc-800 w-full md:w-auto">
+                                {['Compartido', 'Josue', 'Abi'].map(s=><button key={s} onClick={() => setViewScope(s)} className={`px-4 py-2 text-[10px] font-bold uppercase rounded flex-1 md:flex-none transition-colors ${viewScope === s ? 'bg-[#2dd4bf] text-black' : 'text-zinc-500 hover:text-white'}`}>{s==='Compartido'?'Hogar':s}</button>)}
+                            </div>
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold whitespace-nowrap">Corte Operativo</span>
+                                <select className="p-2 text-sm bg-zinc-900 rounded border border-zinc-800 w-full md:w-auto outline-none text-teal-400 font-bold" value={periodoActivo} onChange={e => setPeriodoActivo(e.target.value)}>
+                                    {periodos.length === 0 && <option>{periodoActivo}</option>}
+                                    {periodos.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        {availableTipos.length > 0 && (
+                            <div className="border-t border-zinc-800/50 pt-3 flex flex-wrap gap-2 items-center fade-in">
+                                {availableTipos.map(tipo => {
+                                    const isActive = !hiddenTipos.includes(tipo);
+                                    return <button key={tipo} onClick={() => { if (isActive) setHiddenTipos([...hiddenTipos, tipo]); else setHiddenTipos(hiddenTipos.filter(t => t !== tipo)); }} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-full transition-all border ${isActive ? 'bg-[#2dd4bf]/10 border-[#2dd4bf]/50 text-[#2dd4bf]' : 'bg-transparent border-zinc-800 text-zinc-600'}`}>{tipo}</button>
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className={`grid grid-cols-1 ${showDeuda ? 'md:grid-cols-2' : ''} gap-4`}>
+                        <div className="glass-card p-6">
+                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Gasto {viewScope}</p>
+                            <p className="text-3xl font-bold accent-glow mt-1">{formatoMoneda(totalGastoView)}</p>
+                        </div>
+                        {showDeuda && (
+                            <div className={`glass-card p-6 border-l-4 ${deudaAbi === 0 ? 'border-teal-500' : 'border-rose-500'}`}>
+                                <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Estado Global (Hogar)</p>
+                                <p className={`text-2xl font-bold mt-1 text-white`}>{deudaAbi === 0 ? 'Saldado ✓' : (deudaAbi > 0 ? `Abi debe ${formatoMoneda(deudaAbi)}` : `Josué debe ${formatoMoneda(Math.abs(deudaAbi))}`)}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="glass-card p-6 flex flex-col items-center justify-center">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-6 w-full text-left">Distribución de Gastos</h3>
+                            <div className="pie-chart w-48 h-48 md:w-56 md:h-56 mb-6 transition-all" style={{ background: construirConicGradient() }}></div>
+                        </div>
+                        <div className="glass-card p-6 overflow-y-auto max-h-80">
+                            <ul className="space-y-3">
+                                {categoriasParaRender.map((catObj, i) => {
+                                    const cat = catObj.nombre; const gastado = catObj.total; const meta = currentPresupuesto[cat] || 0;
+                                    if (gastado === 0 && meta === 0) return null; const pct = meta > 0 ? (gastado / meta) * 100 : 0;
+                                    return (
+                                        <li key={cat} 
+                                            onClick={() => { setFiltroCategoriaTabla(cat); if (tablaFiltroTipo !== 'Gasto' && tablaFiltroTipo !== 'Todos') setTablaFiltroTipo('Gasto'); }}
+                                            className="text-xs cursor-pointer hover:bg-zinc-900/50 p-2 -mx-2 rounded transition-colors"
+                                        >
+                                            <div className="flex justify-between items-center mb-1">
+                                                <div className="flex items-center gap-3"><span className="w-4 h-4 rounded-full" style={{backgroundColor: gastado > 0 ? COLORES_PASTEL[i % COLORES_PASTEL.length] : '#333'}}></span><span className="text-zinc-400 font-medium">{cat}</span></div>
+                                                <div className="text-right"><span className={`font-mono ${meta > 0 && pct > 100 ? 'text-rose-500' : 'text-teal-400'}`}>{formatoMoneda(gastado)}</span>{meta > 0 && <span className="text-[9px] text-zinc-500"> / {formatoMoneda(meta)}</span>}</div>
+                                            </div>
+                                            {meta > 0 && (
+                                                <div className="flex items-center gap-3 mt-2"><div className="progress-bar flex-grow"><div className="progress-fill" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pct > 100 ? '#f43f5e' : '#2dd4bf' }}></div></div><span className="text-[9px] font-mono font-bold w-10 text-right text-zinc-400">{pct.toFixed(1)}%</span></div>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="glass-card overflow-hidden">
+                        <div className="p-4 border-b border-zinc-800 bg-zinc-900/30 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Auditoría:</span>
+                                <select className="p-2 text-xs rounded bg-black outline-none border border-zinc-800 text-teal-400 font-bold w-full md:w-auto" value={tablaFiltroTipo} onChange={e=>setTablaFiltroTipo(e.target.value)}>
+                                    <option value="Gasto">Solo Gastos</option>
+                                    <option value="Ingreso">Solo Ingresos</option>
+                                    <option value="Transferencia">Solo Transferencias</option>
+                                    <option value="Todos">Ver Todos</option>
+                                </select>
+                                
+                                {filtroCategoriaTabla && (
+                                    <button onClick={() => setFiltroCategoriaTabla(null)} className="flex items-center gap-1 bg-teal-500/20 text-teal-500 px-2 py-1.5 rounded text-[10px] font-bold border border-teal-500/30 hover:bg-rose-500/20 hover:text-rose-500 hover:border-rose-500/30 transition-colors">
+                                        <span>{filtroCategoriaTabla}</span><span>✕</span>
+                                    </button>
+                                )}
+                            </div>
+                            <div className="w-full md:w-72">
+                                <input className="w-full p-2 text-xs rounded bg-black border border-zinc-800 outline-none text-zinc-300" placeholder="🔍 Buscar (#tags, concepto, monto...)" value={busqueda} onChange={e=>setBusqueda(e.target.value)} />
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-[11px] whitespace-nowrap">
+                                <thead className="bg-zinc-900 text-zinc-400 uppercase font-bold select-none">
+                                    <tr>
+                                        <th className="p-3 cursor-pointer hover:text-white" onClick={() => requestSort('Fecha_Compra')}>Fecha {sortConfig.key==='Fecha_Compra'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
+                                        <th className="p-3 cursor-pointer hover:text-white" onClick={() => requestSort('Compra')}>Concepto {sortConfig.key==='Compra'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
+                                        <th className="p-3 text-teal-400 cursor-pointer hover:text-white" onClick={() => requestSort('Categoria')}>Categoría {sortConfig.key==='Categoria'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
+                                        <th className="p-3 cursor-pointer hover:text-white" onClick={() => requestSort('Cuenta_Origen')}>Cuenta (Flujo) {sortConfig.key==='Cuenta_Origen'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
+                                        <th className="p-3 cursor-pointer hover:text-white" onClick={() => requestSort('Monto_Total')}>Ticket Total {sortConfig.key==='Monto_Total'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
+                                        <th className="p-3 cursor-pointer hover:text-white text-right" onClick={() => requestSort('Aporte')}>Aporte/Parcial {sortConfig.key==='Aporte'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-900">
+                                    {sortedLogs.map((log, idx) => {
+                                        let aporte = Number(log.Monto_Parcial) || 0;
+                                        if (log.Tipo_Operacion === 'Gasto') { aporte = viewScope === 'Compartido' ? Number(log.Monto_Parcial) : (viewScope === 'Josue' ? Number(log.Participacion_Josue) : Number(log.Participacion_Abi)); }
+
+                                        let flujoStr = log.Cuenta_Origen;
+                                        if (log.Tipo_Operacion === 'Transferencia') flujoStr += ` ➔ ${log.Cuenta_Destino}`;
+                                        const colorFila = log.Tipo_Operacion === 'Ingreso' ? 'text-teal-400' : (log.Tipo_Operacion === 'Transferencia' ? 'text-indigo-400' : 'text-zinc-200');
+
+                                        return (
+                                            <tr key={idx} tabIndex="0" className="hover:bg-zinc-900/50 group focus-within:bg-zinc-900/50 transition-colors relative">
+                                                <td className="p-3 text-zinc-500 font-mono">{log.Fecha_Compra}</td>
+                                                <td className={`p-3 font-bold ${colorFila}`}>
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{log.Compra}</span>
+                                                        <span className="text-[8px] border border-zinc-700 px-1 rounded text-zinc-500 uppercase">{log.Tipo_Operacion}</span>
+                                                        <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-2 ml-2">
+                                                            <button onClick={() => onEdit(log)} className="text-zinc-500 hover:text-teal-400"><IconEdit /></button>
+                                                            {deletingLog === log.ID_Unico ? (
+                                                                <div className="flex gap-1 bg-black p-1 rounded border border-rose-500/50">
+                                                                    <button onClick={() => { setDeletingLog(null); apiCall('eliminarGasto', log.ID_Unico).then(()=>document.getElementById('refreshBtn').click()); }} className="text-rose-500 px-2 font-bold text-[9px] hover:bg-rose-500/20 rounded">Eliminar</button>
+                                                                    <button onClick={() => setDeletingLog(null)} className="text-zinc-500 px-1 text-[9px] hover:bg-zinc-800 rounded">Cancelar</button>
+                                                                </div>
+                                                            ) : (
+                                                                <button onClick={() => setDeletingLog(log.ID_Unico)} className="text-zinc-500 hover:text-rose-500"><IconDelete /></button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 text-zinc-400"><span className="text-[9px] text-zinc-600 block">{log.MacroCategoria}</span>{log.Categoria}</td>
+                                                <td className="p-3 text-zinc-500">{flujoStr}</td>
+                                                <td className="p-3 font-mono text-zinc-500">{formatoMoneda(log.Monto_Total)}</td>
+                                                <td className="p-3 font-mono text-teal-400 text-right">{formatoMoneda(aporte)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {sortedLogs.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-zinc-600 font-mono">No se encontraron registros.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // === PESTAÑA: PLAN ===
+        const BudgetEditor = ({ appData, setAppData, loadData }) => {
+            const [planScope, setPlanScope] = useState('Compartido');
+            const [saving, setSaving] = useState(false);
+            const [success, setSuccess] = useState(false);
+            const [formNew, setFormNew] = useState({ tipo: 'Gasto', macro: '', nombre: '' });
+            const [editingCat, setEditingCat] = useState(null);
+            const [editForm, setEditForm] = useState({ oldName: '', nombre: '', macro: '', tipo: 'Gasto' });
+            const [deletingCat, setDeletingCat] = useState(null);
+
+            const handleSave = () => { if(!navigator.onLine) return alert("Necesitas conexión."); setSaving(true); apiCall('guardarPresupuestoGlobal', appData).then(() => { setSaving(false); setSuccess(true); setTimeout(() => setSuccess(false), 2500); }); };
+            
+            const addCat = () => { 
+                const name = formNew.nombre.trim(); const macro = formNew.macro.trim() || 'General'; 
+                if(!navigator.onLine) return alert("Necesitas conexión."); 
+                if(name !== '' && !Object.values(appData.arbolCat).some(t => Object.values(t).some(m => m.includes(name)))) { 
+                    apiCall('agregarCategoriaMaster', {name, macro, tipo: formNew.tipo}).then(()=>loadData()); 
+                    setFormNew({ ...formNew, nombre: '', macro: '' }); 
+                } 
+            };
+
+            const startEdit = (cat, macro, tipo) => { setEditingCat(cat); setEditForm({ oldName: cat, nombre: cat, macro: macro, tipo: tipo }); };
+            const saveEdit = () => {
+                if(!navigator.onLine) return alert("Necesitas conexión.");
+                if(!editForm.nombre.trim()) return;
+                setSaving(true);
+                apiCall('editarCategoriaMaster', { oldName: editForm.oldName, newName: editForm.nombre.trim(), newMacro: editForm.macro.trim() || 'General', newTipo: editForm.tipo }).then(() => { setEditingCat(null); loadData(); setSaving(false); });
+            };
+
+            const confirmDeleteCategory = (cat) => { apiCall('eliminarCategoriaMaster', cat).then(() => loadData()); setDeletingCat(null); };
+            
+            const total = Object.values(appData.presupuesto[planScope] || {}).reduce((a, b) => a + b, 0);
+
+            return (
+                <div className="glass-card p-6 md:p-8 max-w-2xl mx-auto fade-in">
+                    <div className="flex flex-col md:flex-row justify-between items-end border-b border-zinc-800 pb-6 mb-8 gap-4">
+                        <div className="w-full md:w-auto">
+                            <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4">Límites Mensuales</h2>
+                            <div className="flex gap-2 bg-zinc-900/50 p-1 rounded border border-zinc-800">
+                                {['Compartido', 'Josue', 'Abi'].map(s => <button key={s} onClick={() => setPlanScope(s)} className={`px-4 py-2 text-[10px] font-bold uppercase rounded ${planScope === s ? 'bg-[#2dd4bf] text-black' : 'text-zinc-500'}`}>{s === 'Compartido' ? 'Hogar' : s}</button>)}
+                            </div>
+                        </div>
+                        <div className="text-right w-full md:w-auto">
+                            <p className="text-[10px] text-teal-400 font-bold uppercase mb-1">Presupuesto {planScope}</p>
+                            <p className="text-2xl font-black text-white mb-3">{formatoMoneda(total)}</p>
+                            <button disabled={saving || success} onClick={handleSave} className={`w-full md:w-auto px-6 py-2 rounded text-[10px] font-black uppercase transition-all ${success ? 'bg-teal-400 text-black' : 'bg-[#2dd4bf] text-black hover:bg-white'}`}>{saving ? 'Sincronizando...' : (success ? '✅ ¡Guardado!' : 'Guardar Presupuesto')}</button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-8 mb-10">
+                        {['Gasto', 'Ingreso'].map(tipo => {
+                            const macros = Object.keys(appData.arbolCat[tipo] || {});
+                            if(macros.length === 0) return null;
+                            return (
+                                <div key={tipo}>
+                                    <h2 className="text-lg font-black text-white uppercase tracking-widest mb-4 border-b-2 border-zinc-700 pb-2">{tipo}S</h2>
+                                    {macros.map(macro => (
+                                        <div key={macro} className="mb-6 ml-2">
+                                            <h3 className="text-[10px] text-teal-500 font-bold uppercase tracking-widest mb-2">{macro}</h3>
+                                            <div className="space-y-2">
+                                                {appData.arbolCat[tipo][macro].map(c => {
+                                                    if (editingCat === c) {
+                                                        return (
+                                                            <div key={c} className="flex flex-col md:flex-row gap-2 items-center bg-zinc-900 p-3 rounded border border-zinc-700">
+                                                                <select className="w-full md:w-auto p-2 text-xs rounded bg-black outline-none text-teal-400 font-bold" value={editForm.tipo} onChange={e=>setEditForm({...editForm, tipo: e.target.value})}><option>Gasto</option><option>Ingreso</option></select>
+                                                                <input className="w-full md:w-auto p-2 text-xs rounded bg-black outline-none text-white" placeholder="Macro" value={editForm.macro} onChange={e=>setEditForm({...editForm, macro: e.target.value})} />
+                                                                <input className="w-full md:w-auto p-2 text-xs rounded bg-black outline-none text-white font-bold" placeholder="Nombre" value={editForm.nombre} onChange={e=>setEditForm({...editForm, nombre: e.target.value})} />
+                                                                <div className="flex gap-2 w-full md:w-auto justify-end mt-2 md:mt-0">
+                                                                    <button onClick={saveEdit} disabled={saving} className="bg-teal-500 text-black px-4 py-2 rounded text-xs font-bold hover:bg-white">{saving ? '...' : '✓'}</button>
+                                                                    <button onClick={()=>setEditingCat(null)} className="bg-zinc-800 text-zinc-400 px-3 py-2 rounded text-xs hover:text-white">✕</button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <div key={c} tabIndex="0" className="flex flex-col md:flex-row justify-between items-center bg-zinc-900/30 p-3 rounded border border-zinc-800/50 group focus-within:bg-zinc-900/50 transition-all">
+                                                            <div className="flex items-center gap-3 w-full md:w-auto mb-2 md:mb-0">
+                                                                <span className="text-[11px] uppercase text-zinc-300 font-medium pl-2 border-l-2 border-zinc-700">{c}</span>
+                                                                <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-2">
+                                                                    <button onClick={()=>startEdit(c, macro, tipo)} className="text-zinc-500 hover:text-teal-400"><IconEdit /></button>
+                                                                    {deletingCat === c ? (
+                                                                        <div className="flex gap-1 bg-black p-1 rounded border border-rose-500/50">
+                                                                            <button onClick={()=>confirmDeleteCategory(c)} className="text-rose-500 px-2 font-bold text-[9px] hover:bg-rose-500/20 rounded">Eliminar</button>
+                                                                            <button onClick={()=>setDeletingCat(null)} className="text-zinc-500 px-2 text-[9px] hover:bg-zinc-800 rounded">Cancelar</button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <button onClick={()=>setDeletingCat(c)} className="text-zinc-500 hover:text-rose-500"><IconDelete /></button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                                                                <span className="text-zinc-600 text-[10px]">$</span>
+                                                                <input type="number" step="0.01" className="w-24 p-2 rounded text-xs text-right bg-black text-teal-400 font-bold outline-none" value={appData.presupuesto[planScope][c] || ''} onChange={e => setAppData({...appData, presupuesto: {...appData.presupuesto, [planScope]: {...appData.presupuesto[planScope], [c]: e.target.value === '' ? '' : Number(e.target.value)}}})} />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="border-t border-zinc-800 pt-8">
+                        <h3 className="text-xs font-bold uppercase text-zinc-500 tracking-widest mb-4">Crear Nueva Categoría</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-zinc-900 p-2 rounded border border-zinc-800">
+                            <select className="p-2 text-xs rounded bg-black outline-none text-teal-400 font-bold" value={formNew.tipo} onChange={e=>setFormNew({...formNew, tipo: e.target.value})}><option>Gasto</option><option>Ingreso</option></select>
+                            <input className="p-2 text-xs rounded bg-black outline-none" placeholder="Macro (Ej. Fijos)" value={formNew.macro} onChange={e => setFormNew({...formNew, macro: e.target.value})} />
+                            <input className="p-2 text-xs rounded bg-black md:col-span-2 outline-none" placeholder="Nombre de Categoría" value={formNew.nombre} onChange={e => setFormNew({...formNew, nombre: e.target.value})} onKeyDown={e=>e.key==='Enter'&&addCat()} />
+                            <button onClick={addCat} className="md:col-span-4 bg-zinc-800 p-3 text-[10px] font-bold uppercase rounded text-white hover:bg-teal-500 mt-2">Añadir al Sistema</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // === APP PRINCIPAL ===
+        const App = () => {
+            const [view, setView] = useState('registro'); 
+            const [loadingInitial, setLoadingInitial] = useState(true);
+            const [savingGasto, setSavingGasto] = useState(false);
+            const [showSuccess, setShowSuccess] = useState(false);
+            const [showOffline, setShowOffline] = useState(false);
+            const [formError, setFormError] = useState('');
+            
+            const [isLightMode, setIsLightMode] = useState(() => localStorage.getItem('fl_theme') === 'light');
+            useEffect(() => {
+                if (isLightMode) document.body.classList.add('light-mode');
+                else document.body.classList.remove('light-mode');
+                localStorage.setItem('fl_theme', isLightMode ? 'light' : 'dark');
+            }, [isLightMode]);
+            
+            const [appData, setAppData] = useState({ rawLogs: [], presupuesto: { Compartido: {}, Josue: {}, Abi: {} }, arbolCat: { Gasto: {}, Ingreso: {} }, cuentas: [] });
+            const [configProporcion, setConfigProporcion] = useState({ josue: '53', abi: '47' }); 
+            const [form, setForm] = useState({ id_edit: null, tipoOperacion: 'Gasto', fechaCompra: getHoyStr(), registrador: 'Josué', compra: '', monto: '', macroCategoria: '', categoria: '', cuentaOrigen: '', cuentaDestino: '', tipoGasto: 'Compartido (50/50)', msi: '1', esRecordatorio: false });
+
+            const realLogs = useMemo(() => appData.rawLogs.filter(l => l.Es_Recordatorio !== 'TRUE'), [appData.rawLogs]);
+            const reminderLogs = useMemo(() => appData.rawLogs.filter(l => l.Es_Recordatorio === 'TRUE'), [appData.rawLogs]);
+
+            const syncOfflineQueue = async () => {
+                if (!navigator.onLine) return;
+                const queue = JSON.parse(localStorage.getItem('fl_offline_queue') || '[]');
+                if (queue.length === 0) return;
+                let pending = [];
+                for (let req of queue) { try { await apiCall(req.action, req.payload); } catch (e) { pending.push(req); } }
+                localStorage.setItem('fl_offline_queue', JSON.stringify(pending));
+                if (pending.length === 0) loadData(); 
+            };
+
+            useEffect(() => { window.addEventListener('online', syncOfflineQueue); return () => window.removeEventListener('online', syncOfflineQueue); }, []);
+            useEffect(() => { loadData(); }, []);
+
+            const loadData = () => {
+                const cachedData = localStorage.getItem('fl_data_cache');
+                if (cachedData) { setAppData(JSON.parse(cachedData)); setLoadingInitial(false); }
+
+                if (!navigator.onLine) return setLoadingInitial(false);
+                if (!cachedData) setLoadingInitial(true);
+                
+                apiCall('getAppData').then(data => { 
+                    setAppData(data); 
+                    localStorage.setItem('fl_data_cache', JSON.stringify(data));
+                    
+                    if(!form.id_edit && data.cuentas.length > 0) {
+                        const mCats = data.arbolCat['Gasto'] || {}; const mKey = Object.keys(mCats)[0] || '';
+                        setForm(f => ({ ...f, macroCategoria: mKey, categoria: mCats[mKey]?.[0] || '', cuentaOrigen: data.cuentas[0]?.nombre || '', cuentaDestino: data.cuentas[1]?.nombre || '' }));
+                    }
+                    setLoadingInitial(false); syncOfflineQueue(); 
+                }).catch(err => { setLoadingInitial(false); });
+            };
+
+            const triggerEdit = (log) => {
+                const [d, m, y] = log.Fecha_Compra.split('/');
+                let parseTipo = log.Tipo_Gasto;
+                if (parseTipo && parseTipo.includes('Proporcional')) {
+                    parseTipo = 'Proporcional'; const match = log.Tipo_Gasto.match(/\((\d+)\/(\d+)\)/);
+                    if(match) setConfigProporcion({ josue: String(match[1]), abi: String(match[2]) });
+                }
+                setForm({ 
+                    id_edit: log.ID_Unico, tipoOperacion: log.Tipo_Operacion || 'Gasto', fechaCompra: `${y}-${m}-${d}`, 
+                    registrador: log.Registrador, compra: log.Compra, monto: log.Monto_Total, 
+                    macroCategoria: log.MacroCategoria || '', categoria: log.Categoria, 
+                    cuentaOrigen: log.Cuenta_Origen, cuentaDestino: log.Cuenta_Destino || '', tipoGasto: parseTipo || 'Compartido (50/50)', msi: '1',
+                    esRecordatorio: log.Es_Recordatorio === 'TRUE'
+                });
+                setView('registro');
+            };
+
+            const saveGasto = () => {
+                if(!form.monto) { setFormError("⚠️ Falta ingresar el monto total."); setTimeout(()=>setFormError(""),3000); return; }
+                if(!form.compra) { setFormError("⚠️ Falta ingresar la descripción."); setTimeout(()=>setFormError(""),3000); return; }
+
+                setSavingGasto(true);
+                let tipoFinal = form.tipoGasto;
+                if (form.tipoOperacion === 'Gasto' && tipoFinal === 'Proporcional') tipoFinal = `Proporcional (${configProporcion.josue}/${configProporcion.abi})`;
+                
+                const p = { ...form, tipoGasto: tipoFinal, pctJosue: Number(configProporcion.josue)||0, pctAbi: Number(configProporcion.abi)||0 };
+                const fn = form.id_edit ? 'editarGasto' : 'registrarOperacion';
+
+                if (!navigator.onLine) {
+                    const queue = JSON.parse(localStorage.getItem('fl_offline_queue') || '[]'); queue.push({ action: fn, payload: p }); localStorage.setItem('fl_offline_queue', JSON.stringify(queue));
+                    setSavingGasto(false); setShowOffline(true);
+                    setTimeout(() => { setShowOffline(false); setForm({ ...form, id_edit: null, compra: '', monto: '', msi: '1', esRecordatorio: false }); }, 2000);
+                    return;
+                }
+
+                apiCall(fn, p).then(() => {
+                    setSavingGasto(false); setShowSuccess(true);
+                    setTimeout(() => { setShowSuccess(false); setForm({ ...form, id_edit: null, compra: '', monto: '', msi: '1', esRecordatorio: false }); loadData(); }, 1500);
+                }).catch(err => { setSavingGasto(false); setFormError("⚠️ Error del servidor."); setTimeout(()=>setFormError(""),3000); });
+            };
+
+            return (
+                <div className="max-w-5xl mx-auto p-4 md:p-6 pb-20">
+                    <button id="refreshBtn" className="hidden" onClick={loadData}></button>
+                    <header className="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-zinc-900 pb-6 gap-4">
+                        <div className="flex justify-between w-full md:w-auto items-center">
+                            <div>
+                                <h1 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-2">Finance<span className="text-teal-500">Lab</span> {!navigator.onLine && <span className="text-[9px] bg-amber-500 text-black px-2 py-1 rounded font-bold">OFFLINE</span>}</h1>
+                                <p className="text-[9px] text-zinc-500 tracking-[0.3em]">HOGAR JOSUÉ & ABIGAIL</p>
+                            </div>
+                            <button onClick={() => setIsLightMode(!isLightMode)} className="md:ml-4 p-2 rounded bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors">
+                                {isLightMode ? <IconMoon /> : <IconSun />}
+                            </button>
+                        </div>
+                        <nav className="flex gap-2 bg-zinc-900/50 p-1 rounded border border-zinc-800 overflow-x-auto">
+                            {['registro', 'recordatorios', 'cuentas', 'dash', 'plan'].map(v => (
+                                <button key={v} onClick={() => { if(v!=='registro') loadData(); setView(v); setForm(prev => ({...prev, id_edit: null})); }} className={`px-4 py-2 text-[10px] font-bold uppercase rounded transition-colors whitespace-nowrap ${view === v ? 'bg-[#2dd4bf] text-black' : 'text-zinc-500 hover:text-white'}`}>
+                                    {v==='dash'?'Tablero':(v==='recordatorios'?'Memo':v)}
+                                </button>
+                            ))}
+                        </nav>
+                    </header>
+
+                    {loadingInitial && view !== 'registro' ? <div className="text-center mt-20 font-mono text-zinc-500 animate-pulse">Sincronizando Core...</div> : (
+                        view === 'registro' ? (
+                            <div className="glass-card p-6 md:p-8 max-w-2xl mx-auto fade-in">
+                                <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-2">
+                                    <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500">{form.id_edit ? <span className="text-teal-400">✏️ MODO EDICIÓN</span> : 'Registro General'}</h2>
+                                    {form.id_edit && <button onClick={() => setForm({...form, id_edit: null, compra: '', monto: '', esRecordatorio: false})} className="text-[9px] uppercase text-zinc-500 hover:text-white bg-zinc-900 px-2 py-1 rounded">Cancelar</button>}
+                                </div>
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">Tipo Operación</label>
+                                            <select className="w-full p-3 rounded text-xs font-bold text-teal-400 outline-none" value={form.tipoOperacion} onChange={e => {
+                                                const t = e.target.value; const defaultMacro = Object.keys(appData.arbolCat[t]||{})[0] || '';
+                                                setForm({...form, tipoOperacion: t, macroCategoria: defaultMacro, categoria: appData.arbolCat[t]?.[defaultMacro]?.[0] || ''});
+                                            }}><option>Gasto</option><option>Ingreso</option><option>Transferencia</option></select>
+                                        </div>
+                                        <div><label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">Fecha</label><input type="date" className="w-full p-3 rounded font-mono text-xs outline-none" value={form.fechaCompra} onChange={e => setForm({...form, fechaCompra: e.target.value})} /></div>
+                                    </div>
+
+                                    {(form.tipoOperacion === 'Gasto' || form.tipoOperacion === 'Ingreso') && (
+                                        <div className="grid grid-cols-2 gap-4 bg-zinc-900/50 p-3 rounded border border-zinc-800 fade-in">
+                                            <div><label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">Macro</label><select className="w-full p-2 rounded text-xs outline-none" value={form.macroCategoria} onChange={e => setForm({...form, macroCategoria: e.target.value, categoria: appData.arbolCat[form.tipoOperacion]?.[e.target.value]?.[0] || ''})}>{Object.keys(appData.arbolCat[form.tipoOperacion]||{}).map(m=><option key={m}>{m}</option>)}</select></div>
+                                            <div><label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">Sub-Categoría</label><select className="w-full p-2 rounded text-xs outline-none" value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})}>{(appData.arbolCat[form.tipoOperacion]?.[form.macroCategoria]||[]).map(c=><option key={c}>{c}</option>)}</select></div>
+                                        </div>
+                                    )}
+
+                                    <div><label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">Descripción</label><input className="w-full p-3 rounded outline-none text-xs" placeholder="Concepto..." value={form.compra} onChange={e => setForm({...form, compra: e.target.value})} /></div>
+                                    
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold flex justify-between items-center">
+                                                Monto Total
+                                                <span className="text-teal-400 font-mono text-xs">{form.monto ? formatoMoneda(form.monto) : ''}</span>
+                                            </label>
+                                            <input type="number" step="0.01" className="w-full p-3 rounded font-mono text-lg text-white outline-none" placeholder="0.00" value={form.monto} onChange={e => setForm({...form, monto: e.target.value})} />
+                                        </div>
+                                        <div><label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">Registrador</label><select className="w-full p-3 rounded text-xs outline-none" value={form.registrador} onChange={e => setForm({...form, registrador: e.target.value})}><option>Josué</option><option>Abigail</option></select></div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">{form.tipoOperacion === 'Transferencia' ? 'Cuenta ORIGEN' : 'Cuenta / Método'}</label>
+                                            <select className="w-full p-3 rounded text-xs outline-none" value={form.cuentaOrigen} onChange={e => setForm({...form, cuentaOrigen: e.target.value})}>{appData.cuentas.map(c=><option key={c.nombre}>{c.nombre}</option>)}</select>
+                                        </div>
+                                        {form.tipoOperacion === 'Transferencia' ? (
+                                            <div className="fade-in"><label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">Cuenta DESTINO</label><select className="w-full p-3 rounded text-xs outline-none" value={form.cuentaDestino} onChange={e => setForm({...form, cuentaDestino: e.target.value})}>{appData.cuentas.map(c=><option key={c.nombre}>{c.nombre}</option>)}</select></div>
+                                        ) : form.tipoOperacion === 'Gasto' ? (
+                                            <div className="fade-in"><label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">Distribución</label><select className="w-full p-3 rounded text-xs outline-none" value={form.tipoGasto} onChange={e => setForm({...form, tipoGasto: e.target.value})}><option>Compartido (50/50)</option><option value="Proporcional">Proporcional</option><option>Personal Josué</option><option>Personal Abi</option></select></div>
+                                        ) : <div/>}
+                                    </div>
+
+                                    {form.tipoOperacion === 'Gasto' && form.tipoGasto === 'Proporcional' && (
+                                        <div className="grid grid-cols-2 gap-4 p-4 bg-zinc-900 rounded border border-zinc-800 fade-in">
+                                            <div><label className="text-[9px] text-zinc-400 uppercase block mb-1">Josué (%)</label><input type="number" min="0" max="100" className="w-full p-2 rounded text-xs bg-black text-teal-400 font-bold outline-none" value={configProporcion.josue} onChange={e => { const val = e.target.value; setConfigProporcion({ josue: val, abi: val === '' ? '' : String(100 - Number(val)) }); }} /></div>
+                                            <div><label className="text-[9px] text-zinc-400 uppercase block mb-1">Abi (%)</label><input type="number" min="0" max="100" className="w-full p-2 rounded text-xs bg-black text-teal-400 font-bold outline-none" value={configProporcion.abi} onChange={e => { const val = e.target.value; setConfigProporcion({ josue: val === '' ? '' : String(100 - Number(val)), abi: val }); }} /></div>
+                                        </div>
+                                    )}
+
+                                    {!form.id_edit && form.tipoOperacion === 'Gasto' && (
+                                        <div className="border-t border-zinc-800 pt-5 fade-in"><label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold flex justify-between"><span>Meses sin intereses (Opcional)</span></label><input type="number" min="1" max="24" className="w-full p-3 rounded font-mono max-w-[150px] outline-none" value={form.msi} onChange={e => setForm({...form, msi: e.target.value})} /></div>
+                                    )}
+
+                                    <div className="bg-indigo-900/20 border border-indigo-500/30 p-4 rounded mt-4 flex items-center gap-3 cursor-pointer" onClick={() => setForm({...form, esRecordatorio: !form.esRecordatorio})}>
+                                        <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${form.esRecordatorio ? 'bg-indigo-500 border-indigo-400' : 'bg-black border-zinc-600'}`}>
+                                            {form.esRecordatorio && <span className="text-white text-xs font-bold">✓</span>}
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-indigo-300">Guardar como Recordatorio</p>
+                                            <p className="text-[9px] text-zinc-500">No afectará tu balance hasta que lo lances a la realidad.</p>
+                                        </div>
+                                    </div>
+
+                                    {formError && <div className="bg-rose-500/20 text-rose-400 border border-rose-500 p-3 rounded text-xs font-bold text-center mt-4 fade-in">{formError}</div>}
+
+                                    <button disabled={savingGasto || showSuccess || showOffline} onClick={saveGasto} className={`w-full font-black p-4 rounded mt-4 uppercase tracking-[0.2em] text-xs transition-all outline-none ${form.esRecordatorio ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]' : 'bg-[#2dd4bf] text-black shadow-[0_0_15px_rgba(45,212,191,0.2)] hover:bg-white'} ${showOffline ? 'bg-amber-500 text-black shadow-none' : (showSuccess ? 'bg-teal-400 text-black shadow-none' : '')}`}>
+                                        {savingGasto ? 'Sincronizando...' : (showOffline ? '💾 Guardado (Offline)' : (showSuccess ? '✅ ¡Éxito!' : (form.id_edit ? (form.esRecordatorio ? 'Actualizar Recordatorio' : 'Actualizar Operación') : (form.esRecordatorio ? 'Programar Recordatorio' : 'Asentar Operación'))))}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : view === 'recordatorios' ? <RecordatoriosTab logs={reminderLogs} onEdit={triggerEdit} loadData={loadData} /> : view === 'cuentas' ? <CuentasManager cuentas={appData.cuentas} logs={realLogs} loadData={loadData} /> : view === 'plan' ? <BudgetEditor appData={appData} setAppData={setAppData} loadData={loadData} /> : <Dashboard rawLogs={realLogs} presupuesto={appData.presupuesto} cuentas={appData.cuentas} onEdit={triggerEdit} />
+                    )}
+                </div>
+            );
+        };
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>

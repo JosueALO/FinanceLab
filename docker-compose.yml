@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: finance-lab-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: finance_lab
+      POSTGRES_USER: finadmin
+      POSTGRES_PASSWORD: "f1nl4b_s3cur3"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./extended_schema.sql:/docker-entrypoint-initdb.d/02-extended.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - fl-net
+
+  api:
+    build: .
+    container_name: finance-lab-api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - fl-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: finance-lab-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx-financelab.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+    networks:
+      - fl-net
+
+networks:
+  fl-net:
+    driver: bridge
