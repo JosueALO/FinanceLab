@@ -242,6 +242,15 @@ def _get_app_data(_=None):
 
 # ═══ BATCH LOOKUP: Single CTE instead of N queries ═══
 
+def _resolve_id(cur, table, col, val):
+    """Simple ID lookup, no auto-create."""
+    if not val:
+        return None
+    cur.execute(f"SELECT id FROM {table} WHERE {col} = %s", (val,))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
 def _batch_resolve_ids(cur, fields: dict):
     """
     Resuelve todos los IDs de catálogo en una sola query CTE.
@@ -345,11 +354,10 @@ def _grabar_operacion(p, id_unico=None):
             "macro_categorias": ("nombre", f["macro"]),
             "tipos_operacion": ("nombre", f["tipo_op"]),
             "tipos_gasto": ("nombre", f["tipo_gasto"]),
-            "cuentas": ("nombre", f["cuenta_o"]),
-            "cuentas_d": ("nombre", f["cuenta_d"]),
         })
-        cd_id = ids.pop("cuentas_d", None)
-        co_id = ids.pop("cuentas", None)
+        # Resolve cuentas separately (same table, two different values)
+        co_id = _resolve_id(cur, "cuentas", "nombre", f["cuenta_o"]) if f["cuenta_o"] else None
+        cd_id = _resolve_id(cur, "cuentas", "nombre", f["cuenta_d"]) if f["cuenta_d"] else None
 
         monto = f["monto"]
         p_josue, p_abi = _calc_splits(monto, f["tipo_gasto"], f["pct_j"], f["pct_a"])
@@ -442,8 +450,13 @@ def _eliminar_gasto(payload):
         return fail("ID requerido")
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT soft_delete_gasto(%s, %s)", (target_id, "Josué"))
+        # Probar primero si es recordatorio
         cur.execute("DELETE FROM recordatorios WHERE id_unico = %s", (target_id,))
+        if cur.rowcount > 0:
+            cur.close()
+            return ok({"deleted": target_id, "type": "recordatorio"})
+        # Si no, intentar soft_delete en gastos
+        cur.execute("SELECT soft_delete_gasto(%s, %s)", (target_id, "Josué"))
         cur.close()
     return ok({"deleted": target_id})
 

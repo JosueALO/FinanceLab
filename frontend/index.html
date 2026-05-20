@@ -750,7 +750,7 @@
 
                 apiCall(fn, p).then(() => {
                     setSavingGasto(false); setShowSuccess(true);
-                    setTimeout(() => { setShowSuccess(false); setForm({ ...form, id_edit: null, compra: '', monto: '', msi: '1', esRecordatorio: false }); loadData(); }, 1500);
+                    setTimeout(() => { setShowSuccess(false); setForm({ ...form, id_edit: null, fechaCompra: getHoyStr(), compra: '', monto: '', msi: '1', esRecordatorio: false }); loadData(); }, 1500);
                 }).catch(err => { setSavingGasto(false); setFormError("⚠️ Error del servidor."); setTimeout(()=>setFormError(""),3000); });
             }, [form, configProporcion]);
 
@@ -769,7 +769,7 @@
                         </div>
                         <nav className="flex gap-2 bg-zinc-900/50 p-1 rounded border border-zinc-800 overflow-x-auto">
                             {['registro', 'recordatorios', 'cuentas', 'dash', 'plan'].map(v => (
-                                <button key={v} onClick={() => { if(v!=='registro') loadData(); setView(v); setForm(prev => ({...prev, id_edit: null})); }} className={`px-4 py-2 text-[10px] font-bold uppercase rounded transition-colors whitespace-nowrap ${view === v ? 'bg-[#2dd4bf] text-black' : 'text-zinc-500 hover:text-white'}`}>
+                                <button key={v} onClick={() => { if(v!=='registro') loadData(); setView(v); setForm(prev => ({...prev, id_edit: null, fechaCompra: getHoyStr()})); }} className={`px-4 py-2 text-[10px] font-bold uppercase rounded transition-colors whitespace-nowrap ${view === v ? 'bg-[#2dd4bf] text-black' : 'text-zinc-500 hover:text-white'}`}>
                                     {v==='dash'?'Tablero':(v==='recordatorios'?'Memo':v)}
                                 </button>
                             ))}

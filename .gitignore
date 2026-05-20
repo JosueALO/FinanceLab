@@ -1,0 +1,23 @@
+# PostgreSQL data
+pgdata/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Docker
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (if any)
+*.pem
+*.key
