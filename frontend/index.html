@@ -752,7 +752,7 @@
                     setSavingGasto(false); setShowSuccess(true);
                     setTimeout(() => { setShowSuccess(false); setForm({ ...form, id_edit: null, compra: '', monto: '', msi: '1', esRecordatorio: false }); loadData(); }, 1500);
                 }).catch(err => { setSavingGasto(false); setFormError("⚠️ Error del servidor."); setTimeout(()=>setFormError(""),3000); });
-            };
+            }, [form, configProporcion]);
 
             return (
                 <div className="max-w-5xl mx-auto p-4 md:p-6 pb-20">
