@@ -42,20 +42,25 @@
     <div id="root"></div>
     <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(e => console.log(e));</script>
     <script type="text/babel">
-        const { useState, useMemo, useEffect } = React;
+        const { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue } = React;
 
-        const API_URL = "/api"; // <--- REEMPLAZA ESTO
+        const API_URL = "/api";
 
+        // ── UTILITIES ──
+        const parseFechaTS = (s) => { if(!s) return 0; const p=s.split('/'); return new Date(+p[2],+p[1]-1,+p[0]).getTime(); };
         const apiCall = async (action, payload = null) => {
-            const response = await fetch(API_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, payload }) });
-            const text = await response.text();
-            try { const res = JSON.parse(text); if (!res.success) throw new Error(res.error); return res.data; } 
-            catch (e) { throw new Error("Error del Servidor."); }
+            try {
+                const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, payload }) });
+                const d = JSON.parse(await r.text());
+                if (!d.success) throw new Error(d.error);
+                return d.data;
+            } catch(e) { throw new Error(e.message||"Error del Servidor."); }
         };
-
-        const COLORES_PASTEL = ['#2dd4bf', '#0ea5e9', '#8b5cf6', '#f43f5e', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#14b8a6', '#6366f1'];
-        const getHoyStr = () => { const hoy = new Date(); const offset = hoy.getTimezoneOffset() * 60000; return (new Date(hoy - offset)).toISOString().split('T')[0]; };
-        const formatoMoneda = (num) => Number(num || 0).toLocaleString('es-MX', {style: 'currency', currency: 'MXN', minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const enriquecerLogs = (logs) => logs.map(l => ({...l, _sortTS: parseFechaTS(l.Fecha_Compra), _regTS: parseFechaTS(l.Fecha_Registro?.split(' ')[0]) }));
+        const COLORES_PASTEL = ['#2dd4bf','#0ea5e9','#8b5cf6','#f43f5e','#f59e0b','#10b981','#3b82f6','#ec4899','#14b8a6','#6366f1'];
+        const getHoyStr = () => new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().split('T')[0];
+        const formatoMoneda = (num) => Number(num||0).toLocaleString('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:2,maximumFractionDigits:2});
+        const useDebounce = (value, delay=250) => { const [debounced,setDebounced]=useState(value); useEffect(()=>{const t=setTimeout(()=>setDebounced(value),delay);return ()=>clearTimeout(t);},[value,delay]); return debounced; };
 
         const IconEdit = () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>;
         const IconDelete = () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>;
@@ -64,7 +69,7 @@
         const IconLaunch = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>;
 
         // === PESTAÑA: RECORDATORIOS ===
-        const RecordatoriosTab = ({ logs, onEdit, loadData }) => {
+        const RecordatoriosTab = React.memo(({ logs, onEdit, loadData }) => {
             const [viewScope, setViewScope] = useState('Compartido');
             const [busqueda, setBusqueda] = useState('');
             const [lanzandoId, setLanzandoId] = useState(null);
@@ -172,10 +177,10 @@
                     </div>
                 </div>
             );
-        };
+        });
 
         // === PESTAÑA: GESTOR DE CUENTAS ===
-        const CuentasManager = ({ cuentas, logs, loadData }) => {
+        const CuentasManager = React.memo(({ cuentas, logs, loadData }) => {
             const [localCuentas, setLocalCuentas] = useState(cuentas);
             const [saving, setSaving] = useState(false);
             const [form, setForm] = useState({ nombre: '', tipo: 'Activo', saldoInicial: '', propietario: 'Josué', diaCorte: '' });
@@ -252,14 +257,15 @@
                     </div>
                 </div>
             );
-        };
+        });
 
         // === PESTAÑA: TABLERO ===
-        const Dashboard = ({ rawLogs, presupuesto, cuentas, onEdit }) => {
+        const Dashboard = React.memo(({ rawLogs, presupuesto, cuentas, onEdit }) => {
             const [viewScope, setViewScope] = useState('Compartido');
             const [deletingLog, setDeletingLog] = useState(null);
             const [tablaFiltroTipo, setTablaFiltroTipo] = useState('Gasto');
             const [busqueda, setBusqueda] = useState('');
+            const busquedaDebounced = useDebounce(busqueda, 250);
             const [filtroCategoriaTabla, setFiltroCategoriaTabla] = useState(null);
 
             const mapCuentas = useMemo(() => { let map = {}; cuentas.forEach(c => map[c.nombre] = c.propietario); return map; }, [cuentas]);
@@ -294,8 +300,8 @@
                     return true;
                 });
 
-                if (busqueda.trim() !== '') {
-                    const q = busqueda.toLowerCase();
+                if (busquedaDebounced.trim() !== '') {
+                    const q = busquedaDebounced.toLowerCase();
                     mapeados = mapeados.filter(l => 
                         (l.Compra && l.Compra.toLowerCase().includes(q)) || (l.Categoria && l.Categoria.toLowerCase().includes(q)) ||
                         (l.MacroCategoria && l.MacroCategoria.toLowerCase().includes(q)) || (l.Cuenta_Origen && l.Cuenta_Origen.toLowerCase().includes(q)) ||
@@ -304,7 +310,7 @@
                     );
                 }
                 return mapeados;
-            }, [logsGlobal, tablaFiltroTipo, viewScope, busqueda, filtroCategoriaTabla]);
+            }, [logsGlobal, tablaFiltroTipo, viewScope, busquedaDebounced, filtroCategoriaTabla]);
 
             const deudaAbi = logsGlobal.reduce((acc, curr) => {
                 const monto = Number(curr.Monto_Parcial) || 0;
@@ -363,22 +369,12 @@
             const sortedLogs = useMemo(() => {
                 let sortableItems = [...tablaLogs];
                 sortableItems.sort((a, b) => {
-                    let valA = a[sortConfig.key]; let valB = b[sortConfig.key];
+                    let valA, valB;
                     if (sortConfig.key === 'Fecha_Compra') {
-                        // FIX: Ordenamiento con desempate de hora ultra-preciso
-                        const parseD = (s) => { if(!s) return 0; const [d,m,y] = s.split('/'); return new Date(y, m-1, d).getTime(); };
-                        const parseDT = (s) => { 
-                            if(!s) return 0; 
-                            const p = s.split(' ');
-                            if(p.length===1) return parseD(s);
-                            const [d,m,y] = p[0].split('/');
-                            const timeParts = p[1].split(':');
-                            return new Date(y, m-1, d, timeParts[0]||0, timeParts[1]||0, timeParts[2]||0).getTime();
-                        };
-                        valA = parseD(a.Fecha_Compra); valB = parseD(b.Fecha_Compra);
+                        valA = a._sortTS || 0; valB = b._sortTS || 0;
                         if (valA === valB) {
-                            let timeA = parseDT(a.Fecha_Registro); let timeB = parseDT(b.Fecha_Registro);
-                            if(timeA !== timeB) return sortConfig.direction === 'asc' ? timeA - timeB : timeB - timeA;
+                            const ta = a._regTS || 0, tb = b._regTS || 0;
+                            if (ta !== tb) return sortConfig.direction === 'asc' ? ta - tb : tb - ta;
                         }
                     } else if (sortConfig.key === 'Aporte') {
                         valA = viewScope === 'Compartido' ? Number(a.Monto_Parcial) : (viewScope === 'Josue' ? Number(a.Participacion_Josue) : Number(a.Participacion_Abi));
@@ -386,7 +382,8 @@
                     } else if (sortConfig.key === 'Monto_Total') {
                         valA = Number(a.Monto_Total) || 0; valB = Number(b.Monto_Total) || 0;
                     } else {
-                        valA = String(valA || '').toLowerCase(); valB = String(valB || '').toLowerCase();
+                        valA = String(a[sortConfig.key] || '').toLowerCase();
+                        valB = String(b[sortConfig.key] || '').toLowerCase();
                     }
                     if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
                     if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -539,10 +536,10 @@
                     </div>
                 </div>
             );
-        };
+        });
 
         // === PESTAÑA: PLAN ===
-        const BudgetEditor = ({ appData, setAppData, loadData }) => {
+        const BudgetEditor = React.memo(({ appData, setAppData, loadData }) => {
             const [planScope, setPlanScope] = useState('Compartido');
             const [saving, setSaving] = useState(false);
             const [success, setSuccess] = useState(false);
@@ -657,7 +654,7 @@
                     </div>
                 </div>
             );
-        };
+        });
 
         // === APP PRINCIPAL ===
         const App = () => {
@@ -695,26 +692,28 @@
             useEffect(() => { window.addEventListener('online', syncOfflineQueue); return () => window.removeEventListener('online', syncOfflineQueue); }, []);
             useEffect(() => { loadData(); }, []);
 
-            const loadData = () => {
+            const loadData = useCallback(() => {
                 const cachedData = localStorage.getItem('fl_data_cache');
                 if (cachedData) { setAppData(JSON.parse(cachedData)); setLoadingInitial(false); }
 
                 if (!navigator.onLine) return setLoadingInitial(false);
                 if (!cachedData) setLoadingInitial(true);
                 
-                apiCall('getAppData').then(data => { 
-                    setAppData(data); 
+                apiCall('getAppData').then(data => {
+                    // ⚡ Pre-enriquecer con timestamps para evitar parse en cada render
+                    if (data.rawLogs) data.rawLogs = enriquecerLogs(data.rawLogs);
+                    setAppData(data);
                     localStorage.setItem('fl_data_cache', JSON.stringify(data));
                     
                     if(!form.id_edit && data.cuentas.length > 0) {
                         const mCats = data.arbolCat['Gasto'] || {}; const mKey = Object.keys(mCats)[0] || '';
                         setForm(f => ({ ...f, macroCategoria: mKey, categoria: mCats[mKey]?.[0] || '', cuentaOrigen: data.cuentas[0]?.nombre || '', cuentaDestino: data.cuentas[1]?.nombre || '' }));
                     }
-                    setLoadingInitial(false); syncOfflineQueue(); 
+                    setLoadingInitial(false); syncOfflineQueue();
                 }).catch(err => { setLoadingInitial(false); });
-            };
+            }, [form.id_edit]);
 
-            const triggerEdit = (log) => {
+            const triggerEdit = useCallback((log) => {
                 const [d, m, y] = log.Fecha_Compra.split('/');
                 let parseTipo = log.Tipo_Gasto;
                 if (parseTipo && parseTipo.includes('Proporcional')) {
@@ -729,9 +728,9 @@
                     esRecordatorio: log.Es_Recordatorio === 'TRUE'
                 });
                 setView('registro');
-            };
+            }, []);
 
-            const saveGasto = () => {
+            const saveGasto = useCallback(() => {
                 if(!form.monto) { setFormError("⚠️ Falta ingresar el monto total."); setTimeout(()=>setFormError(""),3000); return; }
                 if(!form.compra) { setFormError("⚠️ Falta ingresar la descripción."); setTimeout(()=>setFormError(""),3000); return; }
 
