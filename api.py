@@ -375,9 +375,9 @@ def _grabar_operacion(p, id_unico=None):
             "tipos_operacion": ("nombre", f["tipo_op"]),
             "tipos_gasto": ("nombre", f["tipo_gasto"]),
             "cuentas": ("nombre", f["cuenta_o"]),
-            "cuentas_d": ("nombre", f["cuenta_d"]),
         })
-        cd_id = ids.pop("cuentas_d", None)
+        # Resolve cuenta_destino separately (same cuentas table)
+        cd_id = _batch_resolve_ids(cur, {"cuentas": ("nombre", f["cuenta_d"])}).get("cuentas") if f.get("cuenta_d") else None
         co_id = ids.pop("cuentas", None)
 
         monto = f["monto"]
