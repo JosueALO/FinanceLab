@@ -325,18 +325,33 @@ def _calc_splits(monto, tipo_gasto, pct_j, pct_a):
     return half, round(monto - half, 2)
 
 
-def _calc_periodo(fecha: date, compra: str = ""):
-    """Periodo contable: día ≤ 19 → mismo mes, > 19 → mes siguiente.
+def _calc_periodo(fecha: date, compra: str = "", cuenta_origen_id=None):
+    """Periodo contable.
+    TDC (Pasivo): corte día 19 → ≤19 mismo mes, >19 mes siguiente.
+    Débito/Efectivo (Activo): siempre mismo mes (sin corte).
     Si compra contiene patrón MSI (Mes X/N) o (X/N), suma offset de meses."""
-    if fecha.day <= 19:
-        m, y = fecha.month, fecha.year
-    else:
+    # Determine if this is a credit card (Pasivo = has cutoff)
+    es_credito = False
+    if cuenta_origen_id:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT tipo FROM cuentas WHERE id = %s", (cuenta_origen_id,))
+            row = cur.fetchone()
+            cur.close()
+            if row and row[0] == 'Pasivo':
+                es_credito = True
+    
+    if es_credito and fecha.day > 19:
         m, y = fecha.month + 1, fecha.year
         if m > 12:
             m, y = 1, y + 1
+    else:
+        m, y = fecha.month, fecha.year
+    
     # MSI offset
     if compra:
-        msi = __import__('re').search(r'(?:Mes\s*)?(\d+)\s*/\s*\d+', compra)
+        import re
+        msi = re.search(r'(?:Mes\s*)?(\d+)\s*/\s*\d+', compra)
         if msi:
             offset = int(msi.group(1)) - 1
             m += offset
@@ -367,7 +382,7 @@ def _grabar_operacion(p, id_unico=None):
 
         monto = f["monto"]
         p_josue, p_abi = _calc_splits(monto, f["tipo_gasto"], f["pct_j"], f["pct_a"])
-        periodo = _calc_periodo(f["fecha_compra"], f["compra"])
+        periodo = _calc_periodo(f["fecha_compra"], f["compra"], ids.get("cuentas"))
 
         if f["es_rec"]:
             rec_id = id_unico or str(_gen_uuid(cur))
