@@ -1197,7 +1197,7 @@
             })();
 
             const keys = [
-                ['AC','()','%','÷'],
+                ['AC','⌫','()','÷'],
                 ['7','8','9','×'],
                 ['4','5','6','−'],
                 ['1','2','3','+'],
@@ -1206,13 +1206,17 @@
             
             const handleKey = (k) => {
                 if (k === 'AC') press('AC');
+                else if (k === '⌫') {
+                    const next = expr.length > 1 ? expr.slice(0, -1) : '0';
+                    setExpr(next);
+                    setReset(next === '0');
+                }
                 else if (k === '()') {
                     const open = (expr.match(/\(/g)||[]).length;
                     const close = (expr.match(/\)/g)||[]).length;
                     press(open > close ? ')' : '(');
                 }
-                else if (k === '%') press('/100');
-                else if (k === '÷') press('/');
+                else if (k === '%' || k === '÷') press('/');
                 else if (k === '×') press('*');
                 else if (k === '−') press('-');
                 else press(k);
@@ -1234,7 +1238,7 @@
                                     <button key={k} onClick={() => handleKey(k)} className="col-span-1 p-4 rounded font-mono font-black text-base bg-teal-500 text-black hover:bg-teal-400 active:bg-teal-300 transition-colors">{k}</button>
                                 );
                                 const isOp = ['÷','×','−','+','%','()'].includes(k);
-                                const isFn = ['AC'].includes(k);
+                                const isFn = ['AC','⌫'].includes(k);
                                 return (
                                     <button key={k} onClick={() => handleKey(k)} className={`col-span-1 p-4 rounded font-mono font-bold text-base transition-colors active:scale-95 ${
                                         isFn ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30' :
