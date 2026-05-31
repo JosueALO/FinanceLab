@@ -325,14 +325,24 @@ def _calc_splits(monto, tipo_gasto, pct_j, pct_a):
     return half, round(monto - half, 2)
 
 
-def _calc_periodo(fecha: date):
-    """Periodo contable: día ≤ 19 → mismo mes, > 19 → mes siguiente."""
+def _calc_periodo(fecha: date, compra: str = ""):
+    """Periodo contable: día ≤ 19 → mismo mes, > 19 → mes siguiente.
+    Si compra contiene patrón MSI (Mes X/N) o (X/N), suma offset de meses."""
     if fecha.day <= 19:
         m, y = fecha.month, fecha.year
     else:
         m, y = fecha.month + 1, fecha.year
         if m > 12:
             m, y = 1, y + 1
+    # MSI offset
+    if compra:
+        msi = __import__('re').search(r'(?:Mes\s*)?(\d+)\s*/\s*\d+', compra)
+        if msi:
+            offset = int(msi.group(1)) - 1
+            m += offset
+            while m > 12:
+                m -= 12
+                y += 1
     last_day = calendar.monthrange(y, m)[1]
     return date(y, m, last_day)
 
@@ -357,7 +367,7 @@ def _grabar_operacion(p, id_unico=None):
 
         monto = f["monto"]
         p_josue, p_abi = _calc_splits(monto, f["tipo_gasto"], f["pct_j"], f["pct_a"])
-        periodo = _calc_periodo(f["fecha_compra"])
+        periodo = _calc_periodo(f["fecha_compra"], f["compra"])
 
         if f["es_rec"]:
             rec_id = id_unico or str(_gen_uuid(cur))
