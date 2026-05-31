@@ -1,0 +1,29 @@
+# ── Secrets & Security ──
+certs/
+.htpasswd
+
+# ── Database (PostgreSQL data) ──
+pgdata/
+
+# ── CSV data imports ──
+*.csv
+
+# ── Temp/utility scripts ──
+compare_csv.py
+import_full_csv.py
+import_new.py
+renew-certs.sh
+data_new.csv
+
+# ── Python ──
+__pycache__/
+*.pyc
+venv/
+.env
+
+# ── Docker ──
+docker-compose.override.yml
+
+# ── OS ──
+.DS_Store
+Thumbs.db

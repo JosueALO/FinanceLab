@@ -115,6 +115,10 @@ async def api_handler(request: Request):
 
 # ═══ GET APP DATA (optimized: single query, SQL-formatted dates) ═══
 
+@route("ping")
+def _ping(_=None):
+    return ok({"pong": True})
+
 @route("getAppData")
 def _get_app_data(_=None):
     with get_db() as conn:
@@ -575,6 +579,312 @@ def _eliminar_categoria_master(payload):
         cur.execute("DELETE FROM categoria_arbol WHERE nombre=%s", (nombre,))
         cur.close()
     return ok({"ok": True})
+
+
+# ═══ DASHBOARD ═══
+
+@route("getDashboard")
+def _get_dashboard(payload):
+    """
+    payload: { periodo: "31/05/2026", ambito: "Compartido" | "Josue" | "Abi" }
+    Retorna KPIs, tendencia 6 meses, gastos por categoría, presupuesto vs real,
+    balance entre personas y últimos movimientos.
+    """
+    if not payload:
+        payload = {}
+    periodo = payload.get("periodo", "")
+    ambito = payload.get("ambito", "Compartido")
+
+    # Parse periodo to date range
+    periodo_end = None
+    if periodo:
+        try:
+            parts = periodo.split("/")
+            periodo_end = date(int(parts[2]), int(parts[1]), int(parts[0]))
+        except Exception:
+            periodo_end = None
+
+    with get_db() as conn:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # ── Mapeo de cuentas ──
+        cur.execute("SELECT nombre, propietario FROM cuentas WHERE activo")
+        cuentas_map = {r["nombre"]: r["propietario"] for r in cur.fetchall()}
+
+        # ── Helper: filtrar por ámbito en SQL ──
+        def _ambito_where(alias="g"):
+            if ambito == "Compartido":
+                return f"({alias}.tipo_gasto_id IN (SELECT id FROM tipos_gasto WHERE nombre NOT LIKE '%%Personal%%'))"
+            elif ambito == "Josue":
+                return f"(({alias}.tipo_gasto_id IN (SELECT id FROM tipos_gasto WHERE nombre LIKE '%%Personal Josu%%')) OR ({alias}.tipo_gasto_id IN (SELECT id FROM tipos_gasto WHERE nombre NOT LIKE '%%Personal%%') AND {alias}.participacion_josue > 0))"
+            elif ambito == "Abi":
+                return f"(({alias}.tipo_gasto_id IN (SELECT id FROM tipos_gasto WHERE nombre LIKE '%%Personal Ab%%')) OR ({alias}.tipo_gasto_id IN (SELECT id FROM tipos_gasto WHERE nombre NOT LIKE '%%Personal%%') AND {alias}.participacion_abi > 0))"
+            return "1=1"
+
+        def _ambito_monto(alias="g"):
+            if ambito == "Compartido":
+                return f"COALESCE({alias}.monto_parcial, {alias}.monto_total)"
+            elif ambito == "Josue":
+                return f"{alias}.participacion_josue"
+            elif ambito == "Abi":
+                return f"{alias}.participacion_abi"
+            return f"COALESCE({alias}.monto_parcial, {alias}.monto_total)"
+
+        # ── KPI: Gastos del periodo ──
+        if periodo_end:
+            periodo_filter = "AND g.periodo_pago = %s"
+            kpi_params = (periodo_end,)
+        else:
+            periodo_filter = ""
+            kpi_params = ()
+
+        cur.execute(f"""
+            SELECT
+                COALESCE(SUM(CASE WHEN g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Gasto')
+                    THEN {_ambito_monto()} ELSE 0 END), 0) AS total_gastos,
+                COALESCE(SUM(CASE WHEN g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Ingreso')
+                    THEN {_ambito_monto()} ELSE 0 END), 0) AS total_ingresos
+            FROM gastos g
+            WHERE {_ambito_where()} {periodo_filter}
+        """, kpi_params)
+        kpi_row = cur.fetchone()
+        total_gastos = float(kpi_row["total_gastos"])
+        total_ingresos = float(kpi_row["total_ingresos"])
+        balance_neto = total_ingresos - total_gastos
+
+        # ── Alertas: categorías sobre 90% del presupuesto ──
+        if periodo_end:
+            cur.execute("""
+                SELECT COUNT(*) AS alertas FROM (
+                    SELECT c.nombre,
+                        COALESCE(p.monto, 0) AS presupuesto,
+                        COALESCE(SUM(CASE WHEN g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Gasto')
+                            THEN g.monto_parcial ELSE 0 END), 0) AS gastado
+                    FROM categorias c
+                    LEFT JOIN presupuestos p ON p.categoria_id = c.id AND p.ambito = %s AND p.activo
+                    LEFT JOIN gastos g ON g.categoria_id = c.id AND g.periodo_pago = %s
+                        AND g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Gasto')
+                    WHERE p.monto > 0
+                    GROUP BY c.nombre, p.monto
+                    HAVING COALESCE(SUM(CASE WHEN g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Gasto')
+                        THEN g.monto_parcial ELSE 0 END), 0) / p.monto > 0.9
+                ) sub
+            """, (ambito, periodo_end))
+        else:
+            cur.execute("""
+                SELECT COUNT(*) AS alertas FROM (
+                    SELECT c.nombre,
+                        COALESCE(p.monto, 0) AS presupuesto,
+                        0 AS gastado
+                    FROM categorias c
+                    JOIN presupuestos p ON p.categoria_id = c.id AND p.ambito = %s AND p.activo
+                    WHERE p.monto > 0
+                    GROUP BY c.nombre, p.monto
+                ) sub
+            """, (ambito,))
+        alertas = cur.fetchone()["alertas"] if cur.rowcount else 0
+
+        kpis = {
+            "totalGastos": round(total_gastos, 2),
+            "totalIngresos": round(total_ingresos, 2),
+            "balanceNeto": round(balance_neto, 2),
+            "alertasPresupuesto": alertas,
+        }
+
+        # ── Tendencia 6 meses ──
+        tendencia = []
+        if periodo_end:
+            # Generate 6 period end-dates going backwards
+            periodos_tendencia = []
+            current = periodo_end
+            for i in range(6):
+                periodos_tendencia.append(current)
+                # Go to previous month's last day
+                if current.month == 1:
+                    current = date(current.year - 1, 12, 31)
+                else:
+                    current = date(current.year, current.month, 1) - date.resolution
+
+            meses_es = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
+            for p in reversed(periodos_tendencia):
+                cur.execute(f"""
+                    SELECT
+                        COALESCE(SUM(CASE WHEN g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Gasto')
+                            THEN {_ambito_monto()} ELSE 0 END), 0) AS gastos,
+                        COALESCE(SUM(CASE WHEN g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Ingreso')
+                            THEN {_ambito_monto()} ELSE 0 END), 0) AS ingresos
+                    FROM gastos g
+                    WHERE {_ambito_where()} AND g.periodo_pago = %s
+                """, (p,))
+                row = cur.fetchone()
+                tendencia.append({
+                    "periodo": f"{meses_es[p.month - 1]} {p.year}",
+                    "gastos": round(float(row["gastos"]), 2) if row else 0,
+                    "ingresos": round(float(row["ingresos"]), 2) if row else 0,
+                })
+
+        # ── Gastos por categoría ──
+        if periodo_end:
+            categorias_filter = "AND g.periodo_pago = %s"
+            cat_params = (periodo_end,)
+        else:
+            categorias_filter = ""
+            cat_params = ()
+
+        cur.execute(f"""
+            SELECT c.nombre AS categoria, c.icono,
+                COALESCE(SUM(CASE WHEN g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Gasto')
+                    THEN {_ambito_monto()} ELSE 0 END), 0) AS monto
+            FROM gastos g
+            JOIN categorias c ON g.categoria_id = c.id
+            WHERE {_ambito_where()} {categorias_filter}
+            GROUP BY c.nombre, c.icono
+            HAVING COALESCE(SUM(CASE WHEN g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Gasto')
+                THEN {_ambito_monto()} ELSE 0 END), 0) > 0
+            ORDER BY monto DESC
+        """, cat_params)
+        cat_rows = cur.fetchall()
+        total_cat = sum(float(r["monto"]) for r in cat_rows)
+        gastos_por_categoria = []
+        for r in cat_rows:
+            m = float(r["monto"])
+            gastos_por_categoria.append({
+                "categoria": r["categoria"],
+                "icono": r["icono"] or "📌",
+                "monto": round(m, 2),
+                "porcentaje": round(m / total_cat * 100, 1) if total_cat > 0 else 0,
+            })
+
+        # ── Presupuesto vs Real ──
+        if periodo_end:
+            cur.execute("""
+                SELECT c.nombre AS categoria, c.icono,
+                    COALESCE(p.monto, 0) AS presupuesto,
+                    COALESCE(SUM(CASE WHEN g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Gasto')
+                        THEN g.monto_parcial ELSE 0 END), 0) AS gastado
+                FROM categorias c
+                LEFT JOIN presupuestos p ON p.categoria_id = c.id AND p.ambito = %s AND p.activo
+                LEFT JOIN gastos g ON g.categoria_id = c.id AND g.periodo_pago = %s
+                    AND g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Gasto')
+                WHERE p.monto > 0
+                GROUP BY c.nombre, c.icono, p.monto
+                ORDER BY gastado DESC
+            """, (ambito, periodo_end))
+        else:
+            cur.execute("""
+                SELECT c.nombre AS categoria, c.icono,
+                    COALESCE(p.monto, 0) AS presupuesto,
+                    0 AS gastado
+                FROM categorias c
+                JOIN presupuestos p ON p.categoria_id = c.id AND p.ambito = %s AND p.activo
+                WHERE p.monto > 0
+                GROUP BY c.nombre, c.icono, p.monto
+                ORDER BY gastado DESC
+            """, (ambito,))
+        presupuesto_vs_real = []
+        for r in cur.fetchall():
+            gastado = round(float(r["gastado"]), 2)
+            presup = round(float(r["presupuesto"]), 2)
+            pct = round(gastado / presup * 100, 1) if presup > 0 else 0
+            presupuesto_vs_real.append({
+                "categoria": r["categoria"],
+                "icono": r["icono"] or "📌",
+                "presupuesto": presup,
+                "gastado": gastado,
+                "porcentaje": min(pct, 999.9),
+            })
+
+        # ── Balance entre personas (GLOBAL, sin filtrar por ámbito) ──
+        cur.execute(f"""
+            SELECT
+                COALESCE(SUM(CASE WHEN cu_origen.propietario = 'Josué'
+                    AND g.tipo_gasto_id NOT IN (SELECT id FROM tipos_gasto WHERE nombre LIKE '%Personal%')
+                    THEN g.participacion_abi ELSE 0 END), 0) AS cubre_josue_a_abi,
+                COALESCE(SUM(CASE WHEN cu_origen.propietario = 'Abi'
+                    AND g.tipo_gasto_id NOT IN (SELECT id FROM tipos_gasto WHERE nombre LIKE '%Personal%')
+                    THEN g.participacion_josue ELSE 0 END), 0) AS cubre_abi_a_josue,
+                COALESCE(SUM(CASE WHEN cu_origen.propietario = 'Josué' AND cu_dest.propietario = 'Abi'
+                    AND g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Transferencia')
+                    THEN g.monto_parcial ELSE 0 END), 0) AS trans_josue_a_abi,
+                COALESCE(SUM(CASE WHEN cu_origen.propietario = 'Abi' AND cu_dest.propietario = 'Josué'
+                    AND g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Transferencia')
+                    THEN g.monto_parcial ELSE 0 END), 0) AS trans_abi_a_josue
+            FROM gastos g
+            LEFT JOIN cuentas cu_origen ON g.cuenta_origen_id = cu_origen.id
+            LEFT JOIN cuentas cu_dest ON g.cuenta_destino_id = cu_dest.id
+            WHERE g.tipo_operacion_id IN (
+                SELECT id FROM tipos_operacion WHERE nombre IN ('Gasto', 'Transferencia')
+            )
+        """)
+        bal = cur.fetchone()
+        cubre_ja = round(float(bal["cubre_josue_a_abi"] or 0), 2)
+        cubre_aj = round(float(bal["cubre_abi_a_josue"] or 0), 2)
+        trans_ja = round(float(bal["trans_josue_a_abi"] or 0), 2)
+        trans_aj = round(float(bal["trans_abi_a_josue"] or 0), 2)
+        # Net: positive = Abi debe a Josué (Josué cubrió más de la parte de Abi)
+        neto_deuda = round(cubre_ja - cubre_aj + trans_ja - trans_aj, 2)
+        # What each person paid out-of-pocket (gastos from their accounts, independent of scope)
+        cur.execute(f"""
+            SELECT
+                COALESCE(SUM(CASE WHEN cu_origen.propietario = 'Josué' THEN g.participacion_josue ELSE 0 END), 0) AS pago_josue,
+                COALESCE(SUM(CASE WHEN cu_origen.propietario = 'Abi' THEN g.participacion_abi ELSE 0 END), 0) AS pago_abi
+            FROM gastos g
+            LEFT JOIN cuentas cu_origen ON g.cuenta_origen_id = cu_origen.id
+            WHERE g.tipo_operacion_id = (SELECT id FROM tipos_operacion WHERE nombre='Gasto')
+        """)
+        pagos = cur.fetchone()
+        pago_josue = round(float(pagos["pago_josue"] or 0), 2)
+        pago_abi = round(float(pagos["pago_abi"] or 0), 2)
+
+        balance_personas = {
+            "pagoJosue": pago_josue,
+            "pagoAbi": pago_abi,
+            "neto": neto_deuda,
+            "mensaje": "Saldado ✓" if abs(neto_deuda) < 0.01 else (
+                f"Abi debe a Josué {neto_deuda:,.2f}" if neto_deuda > 0
+                else f"Josué debe a Abi {abs(neto_deuda):,.2f}"
+            ),
+        }
+
+        # ── Últimos movimientos ──
+        cur.execute(f"""
+            SELECT TO_CHAR(g.fecha_compra, 'DD/MM/YYYY') AS fecha, g.compra,
+                c.nombre AS categoria, c.icono,
+                COALESCE(g.monto_parcial, g.monto_total) AS monto,
+                toper.nombre AS tipo_operacion,
+                mc.nombre AS macro_categoria,
+                TO_CHAR(g.periodo_pago, 'DD/MM/YYYY') AS periodo_pago
+            FROM gastos g
+            LEFT JOIN categorias c ON g.categoria_id = c.id
+            LEFT JOIN macro_categorias mc ON g.macro_categoria_id = mc.id
+            LEFT JOIN tipos_operacion toper ON g.tipo_operacion_id = toper.id
+            WHERE {_ambito_where()}
+            ORDER BY g.fecha_compra DESC, g.fecha_registro DESC
+        """)
+        ultimos = []
+        for r in cur.fetchall():
+            ultimos.append({
+                "fecha": r["fecha"] or "",
+                "compra": r["compra"] or "",
+                "categoria": r["categoria"] or "",
+                "macroCategoria": r["macro_categoria"] or "",
+                "icono": r["icono"] or "📌",
+                "monto": round(float(r["monto"] or 0), 2),
+                "tipo": r["tipo_operacion"] or "Gasto",
+                "periodoPago": r["periodo_pago"] or "",
+            })
+
+        cur.close()
+
+    return ok({
+        "kpis": kpis,
+        "tendenciaMensual": tendencia,
+        "gastosPorCategoria": gastos_por_categoria,
+        "presupuestoVsReal": presupuesto_vs_real,
+        "balancePersonas": balance_personas,
+        "ultimosMovimientos": ultimos,
+    })
 
 
 # ═══ Utilities ═══

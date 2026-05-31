@@ -5,7 +5,10 @@
     <title>Finance Lab</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#050505">
-    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Finance Lab">
+    <link rel="manifest" href="manifest.json" crossorigin="use-credentials">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiMwNTA1MDUiLz48dGV4dCB4PSI1MCUiIHk9IjUyJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMjAiIGZvbnQtd2VpZ2h0PSI5MDAiIGZpbGw9IiMyZGQ0YmYiPkZMPC90ZXh0Pjwvc3ZnPg==">
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiMwNTA1MDUiLz48dGV4dCB4PSI1MCUiIHk9IjUyJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMjAiIGZvbnQtd2VpZ2h0PSI5MDAiIGZpbGw9IiMyZGQ0YmYiPkZMPC90ZXh0Pjwvc3ZnPg==">
 
@@ -15,7 +18,8 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;500;800&display=swap" rel="stylesheet">
     <style>
-        body { background: #050505; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; transition: background-color 0.3s ease, color 0.3s ease; }
+        :root { --safe-bottom: env(safe-area-inset-bottom, 0px); --safe-top: env(safe-area-inset-top, 0px); }
+        body { background: #050505; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; transition: background-color 0.3s ease, color 0.3s ease; padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
         .glass-card { background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 8px; transition: background-color 0.3s ease; }
         .accent-glow { color: #2dd4bf; text-shadow: 0 0 8px rgba(45, 212, 191, 0.3); }
         input, select { background: #111 !important; border: 1px solid #222 !important; color: white !important; }
@@ -25,6 +29,44 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .progress-bar { height: 6px; border-radius: 3px; background: #1f1f1f; overflow: hidden; }
         .progress-fill { height: 100%; transition: width 0.5s ease; }
+        
+        /* ── Responsive / Mobile ── */
+        @media (max-width: 768px) {
+            .hide-mobile { display: none !important; }
+            .glass-card { border-radius: 6px; }
+            input, select, button { font-size: 16px !important; }
+            .grid-cols-2, .md\:grid-cols-2 { grid-template-columns: 1fr !important; }
+            .grid-cols-3, .md\:grid-cols-3 { grid-template-columns: 1fr !important; }
+            .grid-cols-4, .md\:grid-cols-4 { grid-template-columns: 1fr 1fr !important; }
+            table { font-size: 9px !important; }
+            th, td { padding: 0.35rem 0.2rem !important; }
+            .p-6, .p-8, .md\:p-8 { padding: 0.75rem !important; }
+            .text-2xl { font-size: 1.1rem !important; }
+            .text-lg { font-size: 0.9rem !important; }
+            .max-w-2xl { max-width: 100% !important; }
+            .mb-8 { margin-bottom: 0.75rem !important; }
+            .gap-4 { gap: 0.35rem !important; }
+            .space-y-4 > * + * { margin-top: 0.5rem !important; }
+            .space-y-6 > * + * { margin-top: 0.75rem !important; }
+            nav button { padding: 0.4rem 0.6rem !important; font-size: 8px !important; }
+            header { flex-direction: column !important; gap: 0.5rem !important; padding-bottom: 0.5rem !important; }
+            .text-\[9px\], .text-\[10px\], .text-\[11px\] { font-size: 8px !important; }
+            .text-\[13px\] { font-size: 10px !important; }
+            .text-sm { font-size: 0.7rem !important; }
+            .px-4 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+            .py-2 { padding-top: 0.35rem !important; padding-bottom: 0.35rem !important; }
+            h2 { font-size: 0.8rem !important; }
+            .w-10, .h-10 { width: 2rem !important; height: 2rem !important; }
+            .w-5, .h-5 { width: 1rem !important; height: 1rem !important; }
+            svg.w-5 { width: 1rem !important; height: 1rem !important; }
+        }
+        
+        /* PWA standalone: compact nav */
+        @media all and (display-mode: standalone) {
+            .pwa-compact { padding: 0.25rem 0.5rem !important; font-size: 9px !important; }
+            .pwa-compact button { padding: 0.3rem 0.5rem !important; font-size: 8px !important; }
+            .hide-standalone { display: none !important; }
+        }
         
         body.light-mode { background: #f8fafc; color: #0f172a; }
         body.light-mode .glass-card { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
@@ -40,11 +82,11 @@
 </head>
 <body>
     <div id="root"></div>
-    <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(e => console.log(e));</script>
+    <script>/* SW disabled */</script>
     <script type="text/babel">
         const { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue } = React;
 
-        const API_URL = "/api";
+        const API_URL = "/financelab/api";
 
         // ── UTILITIES ──
         const parseFechaTS = (s) => { if(!s) return 0; const p=s.split('/'); return new Date(+p[2],+p[1]-1,+p[0]).getTime(); };
@@ -266,7 +308,7 @@
             const [tablaFiltroTipo, setTablaFiltroTipo] = useState('Gasto');
             const [busqueda, setBusqueda] = useState('');
             const busquedaDebounced = useDebounce(busqueda, 250);
-            const [filtroCategoriaTabla, setFiltroCategoriaTabla] = useState(null);
+            const [filtroCategorias, setFiltroCategorias] = useState([]);
 
             const mapCuentas = useMemo(() => { let map = {}; cuentas.forEach(c => map[c.nombre] = c.propietario); return map; }, [cuentas]);
             const periodos = useMemo(() => [...new Set(rawLogs.map(l => l.Periodo_Pago))].filter(Boolean).sort((a, b) => { try { const pA = String(a).split('/'); const pB = String(b).split('/'); return new Date(pB[2], pB[1]-1, pB[0]) - new Date(pA[2], pA[1]-1, pA[0]); } catch(e) { return 0; } }), [rawLogs]);
@@ -274,7 +316,7 @@
             const [periodoActivo, setPeriodoActivo] = useState(periodos.includes(getPeriodoActual()) ? getPeriodoActual() : (periodos[0] || getPeriodoActual()));
             
             const [hiddenTipos, setHiddenTipos] = useState([]);
-            useEffect(() => { setHiddenTipos([]); setFiltroCategoriaTabla(null); }, [viewScope, periodoActivo]);
+            useEffect(() => { setHiddenTipos([]); setFiltroCategorias([]); }, [viewScope, periodoActivo]);
 
             const logsGlobal = useMemo(() => rawLogs.filter(l => l.Periodo_Pago === periodoActivo), [rawLogs, periodoActivo]);
             const logsGrafico = useMemo(() => logsGlobal.filter(l => {
@@ -282,8 +324,9 @@
                 if (viewScope === 'Compartido') return !l.Tipo_Gasto.includes('Personal');
                 if (viewScope === 'Josue') return Number(l.Participacion_Josue) > 0;
                 if (viewScope === 'Abi') return Number(l.Participacion_Abi) > 0;
+                if (filtroCategorias.length > 0 && !filtroCategorias.includes(l.Categoria)) return false;
                 return false;
-            }), [logsGlobal, viewScope]);
+            }), [logsGlobal, viewScope, filtroCategorias]);
 
             const availableTipos = useMemo(() => [...new Set(logsGrafico.map(l => l.Tipo_Gasto))], [logsGrafico]);
             const logsGraficoFiltrado = useMemo(() => logsGrafico.filter(l => !hiddenTipos.includes(l.Tipo_Gasto)), [logsGrafico, hiddenTipos]);
@@ -296,7 +339,7 @@
                         if (viewScope === 'Josue' && !(Number(l.Participacion_Josue) > 0)) return false;
                         if (viewScope === 'Abi' && !(Number(l.Participacion_Abi) > 0)) return false;
                     }
-                    if (filtroCategoriaTabla && l.Categoria !== filtroCategoriaTabla) return false;
+                    if (filtroCategorias.length > 0 && !filtroCategorias.includes(l.Categoria)) return false;
                     return true;
                 });
 
@@ -310,7 +353,7 @@
                     );
                 }
                 return mapeados;
-            }, [logsGlobal, tablaFiltroTipo, viewScope, busquedaDebounced, filtroCategoriaTabla]);
+            }, [logsGlobal, tablaFiltroTipo, viewScope, busquedaDebounced, filtroCategorias]);
 
             const deudaAbi = logsGlobal.reduce((acc, curr) => {
                 const monto = Number(curr.Monto_Parcial) || 0;
@@ -328,7 +371,6 @@
                 return acc;
             }, 0);
 
-            const showDeuda = (viewScope === 'Compartido' && deudaAbi === 0) || (viewScope === 'Josue' && deudaAbi < 0) || (viewScope === 'Abi' && deudaAbi > 0);
             const totalGastoView = logsGraficoFiltrado.reduce((acc, l) => acc + (viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi))), 0);
 
             const categoriasData = useMemo(() => {
@@ -347,18 +389,70 @@
                 return cats;
             }, [categoriasData, currentPresupuesto]);
 
-            const construirConicGradient = () => {
-                if (categoriasData.length === 0 || totalGastoView === 0) return "conic-gradient(#1f1f1f 0% 100%)";
-                let gradientArr = [], porcentajeAcumulado = 0;
-                categoriasData.forEach((cat, index) => {
-                    const pct = (cat.total / totalGastoView) * 100;
-                    gradientArr.push(`${COLORES_PASTEL[index % COLORES_PASTEL.length]} ${porcentajeAcumulado}% ${porcentajeAcumulado + pct}%`);
-                    porcentajeAcumulado += pct;
+            // ── Tendencia 6 meses (local, respeta scope) ──
+            const mesesNombres = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+            const tendenciaData = useMemo(() => {
+                // Generate last 6 periodos from periodoActivo
+                const [d,m,y] = periodoActivo.split('/');
+                let cur = new Date(y, m-1, d);
+                const periods = [];
+                for (let i = 0; i < 6; i++) {
+                    const label = `${mesesNombres[cur.getMonth()]} ${cur.getFullYear()}`;
+                    const lastDay = new Date(cur.getFullYear(), cur.getMonth()+1, 0);
+                    const periodoKey = `${String(lastDay.getDate()).padStart(2,'0')}/${String(lastDay.getMonth()+1).padStart(2,'0')}/${lastDay.getFullYear()}`;
+                    periods.push({ label, periodoKey, date: new Date(cur) });
+                    // Go to previous month
+                    cur = new Date(cur.getFullYear(), cur.getMonth(), 0);
+                }
+                periods.reverse();
+                return periods.map(p => {
+                    const logs = rawLogs.filter(l => {
+                        if (l.Periodo_Pago !== p.periodoKey) return false;
+                        if (l.Tipo_Operacion === 'Transferencia') return false;
+                        if (viewScope === 'Compartido') return !(l.Tipo_Gasto && l.Tipo_Gasto.includes('Personal'));
+                        if (viewScope === 'Josue') return Number(l.Participacion_Josue) > 0;
+                        if (viewScope === 'Abi') return Number(l.Participacion_Abi) > 0;
+                        if (filtroCategorias.length > 0 && !filtroCategorias.includes(l.Categoria)) return false;
+                        if (tablaFiltroTipo === 'Gasto' && l.Tipo_Operacion !== 'Gasto') return false;
+                        if (tablaFiltroTipo === 'Ingreso' && l.Tipo_Operacion !== 'Ingreso') return false;
+                        if (tablaFiltroTipo === 'Transferencia') return false;
+                        return true;
+                    });
+                    let gastos = 0, ingresos = 0;
+                    logs.forEach(l => {
+                        const amt = viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi));
+                        if (l.Tipo_Operacion === 'Ingreso') ingresos += amt;
+                        else gastos += amt;
+                    });
+                    return { label: p.label, gastos, ingresos, neto: ingresos - gastos };
                 });
-                return `conic-gradient(${gradientArr.join(', ')})`;
-            };
+            }, [rawLogs, periodoActivo, viewScope, filtroCategorias, tablaFiltroTipo]);
+
+            // ── Pie chart click state ──
+            const [pieSelected, setPieSelected] = useState(null);
+
+            // ── SVG Donut segments ──
+            const pieSegments = useMemo(() => {
+                if (categoriasData.length === 0 || totalGastoView === 0) return [];
+                let startAngle = -Math.PI / 2;
+                return categoriasData.map((cat, i) => {
+                    const pct = cat.total / totalGastoView;
+                    const angle = pct * 2 * Math.PI;
+                    const endAngle = startAngle + angle;
+                    const result = { ...cat, pct, color: COLORES_PASTEL[i % COLORES_PASTEL.length], startAngle, endAngle };
+                    startAngle = endAngle;
+                    return result;
+                });
+            }, [categoriasData, totalGastoView]);
 
             const [sortConfig, setSortConfig] = useState({ key: 'Fecha_Compra', direction: 'desc' });
+            const [pageSize, setPageSize] = useState(20);
+            const [currentPage, setCurrentPage] = useState(1);
+            const [showTrendGasto, setShowTrendGasto] = useState(true);
+            const [showTrendIngreso, setShowTrendIngreso] = useState(false);
+            const [showTrendNeto, setShowTrendNeto] = useState(false);
+
+            useEffect(() => { setCurrentPage(1); }, [tablaLogs.length, sortConfig, pageSize]);
             
             const requestSort = (key) => {
                 let direction = 'asc';
@@ -417,36 +511,118 @@
                         )}
                     </div>
 
-                    <div className={`grid grid-cols-1 ${showDeuda ? 'md:grid-cols-2' : ''} gap-4`}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="glass-card p-6">
                             <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Gasto {viewScope}</p>
                             <p className="text-3xl font-bold accent-glow mt-1">{formatoMoneda(totalGastoView)}</p>
                         </div>
-                        {showDeuda && (
-                            <div className={`glass-card p-6 border-l-4 ${deudaAbi === 0 ? 'border-teal-500' : 'border-rose-500'}`}>
-                                <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Estado Global (Hogar)</p>
-                                <p className={`text-2xl font-bold mt-1 text-white`}>{deudaAbi === 0 ? 'Saldado ✓' : (deudaAbi > 0 ? `Abi debe ${formatoMoneda(deudaAbi)}` : `Josué debe ${formatoMoneda(Math.abs(deudaAbi))}`)}</p>
+                        {viewScope === 'Compartido' ? (
+                            <div className={`glass-card p-6 border-l-4 ${Math.abs(deudaAbi) < 0.01 ? 'border-teal-500' : 'border-amber-500'}`}>
+                                <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Balance Neto (Hogar)</p>
+                                <p className={`text-2xl font-bold mt-1 text-white`}>{Math.abs(deudaAbi) < 0.01 ? 'Saldado ✓' : `${deudaAbi > 0 ? '+' : ''}${formatoMoneda(deudaAbi)}`}</p>
+                            </div>
+                        ) : (
+                            <div className={`glass-card p-6 border-l-4 ${Math.abs(deudaAbi) < 0.01 ? 'border-teal-500' : ((viewScope === 'Josue' && deudaAbi > 0) || (viewScope === 'Abi' && deudaAbi < 0) ? 'border-teal-500' : 'border-rose-500')}`}>
+                                <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Tu Balance</p>
+                                <p className={`text-2xl font-bold mt-1 ${Math.abs(deudaAbi) < 0.01 ? 'text-white' : ((viewScope === 'Josue' && deudaAbi > 0) || (viewScope === 'Abi' && deudaAbi < 0) ? 'text-teal-400' : 'text-rose-400')}`}>
+                                    {Math.abs(deudaAbi) < 0.01 ? 'Estás al día ✓' : (
+                                        (viewScope === 'Josue' && deudaAbi > 0) ? `Abi te debe ${formatoMoneda(deudaAbi)}` :
+                                        (viewScope === 'Josue' && deudaAbi < 0) ? `Le debes a Abi ${formatoMoneda(Math.abs(deudaAbi))}` :
+                                        (viewScope === 'Abi' && deudaAbi > 0) ? `Le debes a Josué ${formatoMoneda(deudaAbi)}` :
+                                        `Josué te debe ${formatoMoneda(Math.abs(deudaAbi))}`
+                                    )}
+                                </p>
                             </div>
                         )}
                     </div>
 
+                    {/* ── Donut interactivo + Categorías ── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="glass-card p-6 flex flex-col items-center justify-center">
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-6 w-full text-left">Distribución de Gastos</h3>
-                            <div className="pie-chart w-48 h-48 md:w-56 md:h-56 mb-6 transition-all" style={{ background: construirConicGradient() }}></div>
+                        <div className="glass-card p-6 flex flex-col items-center">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 w-full text-left flex items-center gap-2 flex-wrap">
+                                Distribución de Gastos
+                                {filtroCategorias.length > 0 && (
+                                    <button onClick={() => { setFiltroCategorias([]); setPieSelected(null); }} className="text-[9px] bg-teal-500/20 text-teal-400 px-2 py-0.5 rounded hover:bg-rose-500/20 hover:text-rose-400 transition-colors">
+                                        ✕ {filtroCategorias.length} selecc.
+                                    </button>
+                                )}
+                            </h3>
+                            {categoriasData.length === 0 || totalGastoView === 0 ? (
+                                <div className="w-48 h-48 md:w-56 md:h-56 rounded-full flex items-center justify-center" style={{background:'#111'}}>
+                                    <span className="text-zinc-600 text-xs">Sin datos</span>
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <svg viewBox="0 0 200 200" className="w-48 h-48 md:w-56 md:h-56 cursor-pointer" style={{filter:'drop-shadow(0 0 12px rgba(0,0,0,0.5))'}}>
+                                        {pieSegments.map((seg, i) => {
+                                            const isActive = filtroCategorias.length === 0 || filtroCategorias.includes(seg.nombre);
+                                            const isDimmed = filtroCategorias.length > 0 && !filtroCategorias.includes(seg.nombre);
+                                            const R_o = 90, R_i = 50, cx = 100, cy = 100;
+                                            const a1 = seg.startAngle, a2 = seg.endAngle;
+                                            const x1o = cx + R_o * Math.cos(a1), y1o = cy + R_o * Math.sin(a1);
+                                            const x2o = cx + R_o * Math.cos(a2), y2o = cy + R_o * Math.sin(a2);
+                                            const x1i = cx + R_i * Math.cos(a1), y1i = cy + R_i * Math.sin(a1);
+                                            const x2i = cx + R_i * Math.cos(a2), y2i = cy + R_i * Math.sin(a2);
+                                            const la = (a2 - a1) > Math.PI ? 1 : 0;
+                                            const donutPath = `M ${x1o} ${y1o} A ${R_o} ${R_o} 0 ${la} 1 ${x2o} ${y2o} L ${x2i} ${y2i} A ${R_i} ${R_i} 0 ${la} 0 ${x1i} ${y1i} Z`;
+                                            return (
+                                                <g key={i}>
+                                                    <path
+                                                        d={donutPath}
+                                                        fill={isDimmed ? seg.color + '33' : seg.color}
+                                                        stroke="#050505" strokeWidth="1.5"
+                                                        style={{transition:'fill 0.25s ease, opacity 0.25s ease', opacity: isDimmed ? 0.35 : 1}}
+                                                        onClick={() => {
+                                                            setFiltroCategorias(prev => prev.includes(seg.nombre) ? prev.filter(c => c !== seg.nombre) : [...prev, seg.nombre]);
+                                                            setPieSelected(pieSelected === i ? null : i);
+                                                            if (tablaFiltroTipo !== 'Gasto' && tablaFiltroTipo !== 'Todos') setTablaFiltroTipo('Gasto');
+                                                        }}
+                                                        onMouseEnter={() => setPieSelected(pieSelected === i ? null : i)}
+                                                        onMouseLeave={() => setPieSelected(prev => prev === i ? null : prev)}
+                                                    />
+                                                </g>
+                                            );
+                                        })}
+                                        <circle cx="100" cy="100" r="48" fill="#0a0a0a" stroke="#1a1a1a" strokeWidth="1" />
+                                        {filtroCategorias.length === 1 && pieSegments.find(s => s.nombre === filtroCategorias[0]) ? (() => {
+                                            const sel = pieSegments.find(s => s.nombre === filtroCategorias[0]);
+                                            return (
+                                                <>
+                                                    <text x="100" y="86" textAnchor="middle" className="text-[9px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>{sel.nombre}</text>
+                                                    <text x="100" y="106" textAnchor="middle" className="text-[15px] font-bold" fill={sel.color} style={{fontFamily:'JetBrains Mono,monospace'}}>{(sel.pct*100).toFixed(1)}%</text>
+                                                    <text x="100" y="122" textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>{formatoMoneda(sel.total)}</text>
+                                                </>
+                                            );
+                                        })() : filtroCategorias.length > 1 ? (
+                                            <>
+                                                <text x="100" y="96" textAnchor="middle" className="text-[11px] font-bold fill-teal-400" style={{fontFamily:'JetBrains Mono,monospace'}}>{filtroCategorias.length} cats</text>
+                                                <text x="100" y="112" textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>{formatoMoneda(totalGastoView)}</text>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <text x="100" y="96" textAnchor="middle" className="text-[11px] font-bold fill-white" style={{fontFamily:'JetBrains Mono,monospace'}}>{formatoMoneda(totalGastoView)}</text>
+                                                <text x="100" y="112" textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>Total</text>
+                                            </>
+                                        )}
+                                    </svg>
+                                </div>
+                            )}
                         </div>
                         <div className="glass-card p-6 overflow-y-auto max-h-80">
                             <ul className="space-y-3">
                                 {categoriasParaRender.map((catObj, i) => {
                                     const cat = catObj.nombre; const gastado = catObj.total; const meta = currentPresupuesto[cat] || 0;
                                     if (gastado === 0 && meta === 0) return null; const pct = meta > 0 ? (gastado / meta) * 100 : 0;
+                                    const catActive = filtroCategorias.length === 0 || filtroCategorias.includes(cat);
+                                    const catDimmed = filtroCategorias.length > 0 && !filtroCategorias.includes(cat);
                                     return (
                                         <li key={cat} 
-                                            onClick={() => { setFiltroCategoriaTabla(cat); if (tablaFiltroTipo !== 'Gasto' && tablaFiltroTipo !== 'Todos') setTablaFiltroTipo('Gasto'); }}
+                                            onClick={() => { setFiltroCategorias(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]); if (tablaFiltroTipo !== 'Gasto' && tablaFiltroTipo !== 'Todos') setTablaFiltroTipo('Gasto'); }}
                                             className="text-xs cursor-pointer hover:bg-zinc-900/50 p-2 -mx-2 rounded transition-colors"
+                                            style={{opacity: catDimmed ? 0.35 : 1, transition:'opacity 0.25s ease'}}
                                         >
                                             <div className="flex justify-between items-center mb-1">
-                                                <div className="flex items-center gap-3"><span className="w-4 h-4 rounded-full" style={{backgroundColor: gastado > 0 ? COLORES_PASTEL[i % COLORES_PASTEL.length] : '#333'}}></span><span className="text-zinc-400 font-medium">{cat}</span></div>
+                                                <div className="flex items-center gap-3"><span className="w-4 h-4 rounded-full" style={{backgroundColor: gastado > 0 ? COLORES_PASTEL[i % COLORES_PASTEL.length] : '#333'}}></span><span className={`font-medium ${catDimmed ? 'text-zinc-600' : 'text-zinc-400'}`}>{cat}</span></div>
                                                 <div className="text-right"><span className={`font-mono ${meta > 0 && pct > 100 ? 'text-rose-500' : 'text-teal-400'}`}>{formatoMoneda(gastado)}</span>{meta > 0 && <span className="text-[9px] text-zinc-500"> / {formatoMoneda(meta)}</span>}</div>
                                             </div>
                                             {meta > 0 && (
@@ -457,6 +633,135 @@
                                 })}
                             </ul>
                         </div>
+                    </div>
+
+                    {/* ── Tendencia 6 meses: puntos + líneas con toggles ── */}
+                    <div className="glass-card p-6">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Tendencia 6 Meses</h3>
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowTrendGasto(!showTrendGasto)} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-full border transition-all flex items-center gap-1.5 ${showTrendGasto ? 'bg-[#ef4444]/15 border-[#ef4444]/50 text-[#ef4444]' : 'border-zinc-800 text-zinc-600'}`}>
+                                    <span className="w-2 h-2 rounded-full" style={{backgroundColor:'#ef4444'}}></span>Gasto
+                                </button>
+                                <button onClick={() => setShowTrendIngreso(!showTrendIngreso)} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-full border transition-all flex items-center gap-1.5 ${showTrendIngreso ? 'bg-[#22c55e]/15 border-[#22c55e]/50 text-[#22c55e]' : 'border-zinc-800 text-zinc-600'}`}>
+                                    <span className="w-2 h-2 rounded-full" style={{backgroundColor:'#22c55e'}}></span>Ingreso
+                                </button>
+                                <button onClick={() => setShowTrendNeto(!showTrendNeto)} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-full border transition-all flex items-center gap-1.5 ${showTrendNeto ? 'bg-[#3b82f6]/15 border-[#3b82f6]/50 text-[#3b82f6]' : 'border-zinc-800 text-zinc-600'}`}>
+                                    <span className="w-2 h-2 rounded-full" style={{backgroundColor:'#3b82f6'}}></span>Neto
+                                </button>
+                            </div>
+                        </div>
+                        {tendenciaData.length === 0 ? (
+                            <p className="text-zinc-600 text-xs text-center py-8">Sin datos de tendencia</p>
+                        ) : (() => {
+                            const anyVisible = showTrendGasto || showTrendIngreso || showTrendNeto;
+                            if (!anyVisible) return <p className="text-zinc-500 text-xs text-center py-8">Selecciona al menos una serie ↑</p>;
+                            const maxVal = Math.max(
+                                ...tendenciaData.map(d => Math.max(
+                                    showTrendGasto ? d.gastos : 0,
+                                    showTrendIngreso ? d.ingresos : 0,
+                                    showTrendNeto ? Math.abs(d.neto) : 0
+                                )), 1
+                            );
+                            const maxNeg = showTrendNeto ? Math.abs(Math.min(...tendenciaData.map(d => Math.min(0, d.neto)), 0)) : 0;
+                            const yMax = Math.max(maxVal, maxNeg);
+                            const niceMax = Math.ceil(yMax / 1000) * 1000 || 1000;
+                            const H = 180, W_OFF = 50, W_RIGHT = 20, BOT = 20, TOP = 10;
+                            const chartH = H + BOT + TOP, gap = 60;
+                            const totalW = W_OFF + tendenciaData.length * gap + W_RIGHT;
+                            const yScale = (v) => H/2 - (v / niceMax) * (H/2 - 15);
+                            const zeroY = TOP + H/2;
+                            const yTicks = [-niceMax, -niceMax/2, 0, niceMax/2, niceMax];
+                            return (
+                                <div className="overflow-x-auto">
+                                    <svg viewBox={`0 0 ${totalW} ${chartH}`} className="w-full" style={{minWidth:'500px',height:'auto'}}>
+                                        {/* Grid */}
+                                        {yTicks.map((t,i) => (
+                                            <g key={i}>
+                                                <line x1={W_OFF} y1={TOP + yScale(t)} x2={W_OFF + tendenciaData.length * gap - 10} y2={TOP + yScale(t)} stroke={t === 0 ? '#333' : '#1f1f1f'} strokeWidth={t === 0 ? '1.5' : '1'} strokeDasharray={t === 0 ? '' : '4 4'} />
+                                                <text x={W_OFF - 8} y={TOP + yScale(t) + 4} textAnchor="end" className="text-[8px] fill-zinc-600" style={{fontFamily:'JetBrains Mono,monospace'}}>{t < 0 ? '-$'+Math.abs(t/1000)+'k' : '$'+t/1000+'k'}</text>
+                                            </g>
+                                        ))}
+                                        {/* Month labels */}
+                                        {tendenciaData.map((d, i) => {
+                                            const x = W_OFF + i * gap;
+                                            return <text key={'lbl'+i} x={x} y={TOP + H + 14} textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>{d.label}</text>;
+                                        })}
+                                        {/* Gasto: red dots + solid line */}
+                                        {showTrendGasto && (() => {
+                                            const points = tendenciaData.map((d,i) => `${W_OFF + i * gap},${TOP + yScale(d.gastos)}`).join(' ');
+                                            return (
+                                                <g>
+                                                    <polyline points={points} fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+                                                    {tendenciaData.map((d,i) => (
+                                                        <circle key={'g'+i} cx={W_OFF + i * gap} cy={TOP + yScale(d.gastos)} r="5" fill="#ef4444" stroke="#050505" strokeWidth="2">
+                                                            <title>Gasto {d.label}: {formatoMoneda(d.gastos)}</title>
+                                                        </circle>
+                                                    ))}
+                                                </g>
+                                            );
+                                        })()}
+                                        {/* Ingreso: green dots + solid line */}
+                                        {showTrendIngreso && (() => {
+                                            const points = tendenciaData.map((d,i) => `${W_OFF + i * gap},${TOP + yScale(d.ingresos)}`).join(' ');
+                                            return (
+                                                <g>
+                                                    <polyline points={points} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+                                                    {tendenciaData.map((d,i) => (
+                                                        <circle key={'i'+i} cx={W_OFF + i * gap} cy={TOP + yScale(d.ingresos)} r="5" fill="#22c55e" stroke="#050505" strokeWidth="2">
+                                                            <title>Ingreso {d.label}: {formatoMoneda(d.ingresos)}</title>
+                                                        </circle>
+                                                    ))}
+                                                </g>
+                                            );
+                                        })()}
+                                        {/* Neto: blue dots + dashed line */}
+                                        {showTrendNeto && (() => {
+                                            const points = tendenciaData.map((d,i) => `${W_OFF + i * gap},${TOP + yScale(d.neto)}`).join(' ');
+                                            return (
+                                                <g>
+                                                    <polyline points={points} fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+                                                    {tendenciaData.map((d,i) => (
+                                                        <circle key={'n'+i} cx={W_OFF + i * gap} cy={TOP + yScale(d.neto)} r="5" fill="#3b82f6" stroke="#050505" strokeWidth="2">
+                                                            <title>Neto {d.label}: {formatoMoneda(d.neto)}</title>
+                                                        </circle>
+                                                    ))}
+                                                </g>
+                                            );
+                                        })()}
+                                        {/* ── Smart value labels (avoid overlap) ── */}
+                                        {(() => {
+                                            const allLabels = [];
+                                            tendenciaData.forEach((d, i) => {
+                                                const x = W_OFF + i * gap;
+                                                if (showTrendGasto) allLabels.push({ x, dotY: TOP + yScale(d.gastos), val: d.gastos, color: '#ef4444', key: 'g'+i });
+                                                if (showTrendIngreso) allLabels.push({ x, dotY: TOP + yScale(d.ingresos), val: d.ingresos, color: '#22c55e', key: 'i'+i });
+                                                if (showTrendNeto) allLabels.push({ x, dotY: TOP + yScale(d.neto), val: d.neto, color: '#3b82f6', key: 'n'+i });
+                                            });
+                                            const groups = {};
+                                            allLabels.forEach(l => { if (!groups[l.x]) groups[l.x] = []; groups[l.x].push(l); });
+                                            const positioned = [];
+                                            Object.values(groups).forEach(group => {
+                                                group.sort((a,b) => a.dotY - b.dotY);
+                                                let prevBottom = -Infinity;
+                                                const MIN_GAP = 11;
+                                                group.forEach((lbl, idx) => {
+                                                    let ly = lbl.dotY - 12;
+                                                    if (ly < TOP + 8) ly = lbl.dotY + 14;
+                                                    if (ly - 8 < prevBottom) ly = prevBottom + MIN_GAP;
+                                                    if (ly > TOP + H - 2) ly = lbl.dotY - 12;
+                                                    prevBottom = ly + 8;
+                                                    positioned.push({ ...lbl, labelY: ly });
+                                                });
+                                            });
+                                            return positioned.map(pl => (
+                                                <text key={'vl'+pl.key} x={pl.x} y={pl.labelY} textAnchor="middle" className="text-[7px] font-bold" fill={pl.color} style={{fontFamily:'JetBrains Mono,monospace', paintOrder:'stroke', stroke:'#050505', strokeWidth:'2.5px', strokeLinecap:'round', strokeLinejoin:'round'}}>{pl.val === 0 ? '$0' : pl.val >= 1000 ? '$'+Math.round(pl.val/1000)+'k' : '$'+Math.round(pl.val)}</text>
+                                            ));
+                                        })()}
+                                    </svg>
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     <div className="glass-card overflow-hidden">
@@ -470,9 +775,9 @@
                                     <option value="Todos">Ver Todos</option>
                                 </select>
                                 
-                                {filtroCategoriaTabla && (
-                                    <button onClick={() => setFiltroCategoriaTabla(null)} className="flex items-center gap-1 bg-teal-500/20 text-teal-500 px-2 py-1.5 rounded text-[10px] font-bold border border-teal-500/30 hover:bg-rose-500/20 hover:text-rose-500 hover:border-rose-500/30 transition-colors">
-                                        <span>{filtroCategoriaTabla}</span><span>✕</span>
+                                {filtroCategorias.length > 0 && (
+                                    <button onClick={() => setFiltroCategorias([])} className="flex items-center gap-1 bg-teal-500/20 text-teal-500 px-2 py-1.5 rounded text-[10px] font-bold border border-teal-500/30 hover:bg-rose-500/20 hover:text-rose-500 hover:border-rose-500/30 transition-colors">
+                                        <span>{filtroCategorias.length} cat</span><span>✕</span>
                                     </button>
                                 )}
                             </div>
@@ -494,7 +799,7 @@
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-900">
-                                    {sortedLogs.map((log, idx) => {
+                                    {(() => { const start = (currentPage - 1) * pageSize; const page = sortedLogs.slice(start, start + pageSize); return page.map((log, idx) => {
                                         let aporte = Number(log.Monto_Parcial) || 0;
                                         if (log.Tipo_Operacion === 'Gasto') { aporte = viewScope === 'Compartido' ? Number(log.Monto_Parcial) : (viewScope === 'Josue' ? Number(log.Participacion_Josue) : Number(log.Participacion_Abi)); }
 
@@ -528,11 +833,32 @@
                                                 <td className="p-3 font-mono text-teal-400 text-right">{formatoMoneda(aporte)}</td>
                                             </tr>
                                         );
-                                    })}
+                                    }) })()}
                                     {sortedLogs.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-zinc-600 font-mono">No se encontraron registros.</td></tr>}
                                 </tbody>
                             </table>
                         </div>
+                        {sortedLogs.length > 0 && (
+                            <div className="p-3 border-t border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-3">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-zinc-500 uppercase">Mostrar</span>
+                                    <select className="p-1.5 text-xs rounded bg-black border border-zinc-800 outline-none text-teal-400 font-bold" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
+                                        <option value={10}>10</option>
+                                        <option value={20}>20</option>
+                                        <option value={50}>50</option>
+                                        <option value={100}>100</option>
+                                    </select>
+                                    <span className="text-[10px] text-zinc-500">de {sortedLogs.length} registros</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => setCurrentPage(1)} disabled={currentPage <= 1} className="px-2 py-1 text-[10px] font-bold rounded bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed">⟪</button>
+                                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="px-3 py-1 text-[10px] font-bold rounded bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed">‹ Anterior</button>
+                                    <span className="text-[10px] text-zinc-500 font-mono px-2">Pág {currentPage} de {Math.max(1, Math.ceil(sortedLogs.length / pageSize))}</span>
+                                    <button onClick={() => setCurrentPage(p => Math.min(Math.max(1, Math.ceil(sortedLogs.length / pageSize)), p + 1))} disabled={currentPage * pageSize >= sortedLogs.length} className="px-3 py-1 text-[10px] font-bold rounded bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed">Siguiente ›</button>
+                                    <button onClick={() => setCurrentPage(Math.max(1, Math.ceil(sortedLogs.length / pageSize)))} disabled={currentPage * pageSize >= sortedLogs.length} className="px-2 py-1 text-[10px] font-bold rounded bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed">⟫</button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
@@ -656,8 +982,153 @@
             );
         });
 
+        // ── HASH UTILS ──
+        const sha256hex = async (txt) => { const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt)); return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join(''); };
+        const USERS = () => { try { return JSON.parse(localStorage.getItem('fl_users') || '{}'); } catch(e) { return {}; } };
+        const saveUsers = (u) => localStorage.setItem('fl_users', JSON.stringify(u));
+        
+        // Init default users on first load
+        (async () => {
+            if (!localStorage.getItem('fl_users')) {
+                saveUsers({
+                    josue: { hash: '1a67316dfbb24cbd5a17450aa53cd9ae42cdc7b1f58d06ec71bdcf2c9ad1fb28', pregunta: '¿Ciudad donde nos conocimos?', respuesta: await sha256hex('cdmx') },
+                    abi: { hash: '0c1a70e4512ee6f78c92820756a4026ce1f93872369624f31cf206614b2e231f', pregunta: '¿Ciudad donde nos conocimos?', respuesta: await sha256hex('cdmx') }
+                });
+            }
+        })();
+
+        // === PANTALLA DE LOGIN ===
+        const LoginScreen = ({ onLogin }) => {
+            const [user, setUser] = useState(localStorage.getItem('fl_lastuser') || '');
+            const [pw, setPw] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [forgotView, setForgotView] = useState(false);
+            const [recoveryUser, setRecoveryUser] = useState('');
+            const [recoveryAnswer, setRecoveryAnswer] = useState('');
+            const [recoveryNewPw, setRecoveryNewPw] = useState('');
+            const [recoveryStep, setRecoveryStep] = useState(0); // 0=q shown, 1=set new pw
+            const [recoveryQ, setRecoveryQ] = useState('');
+            
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                if (!user) { setError('Selecciona tu usuario'); return; }
+                setLoading(true); setError('');
+                const users = USERS();
+                const u = users[user];
+                if (!u) { setError('Usuario no encontrado'); setLoading(false); return; }
+                const hash = await sha256hex(pw);
+                if (hash === u.hash) {
+                    localStorage.setItem('fl_auth', '1');
+                    localStorage.setItem('fl_user', user);
+                    localStorage.setItem('fl_lastuser', user);
+                    onLogin(user);
+                } else {
+                    setError('Contraseña incorrecta');
+                    setLoading(false);
+                }
+            };
+
+            const startRecovery = (usr) => {
+                const users = USERS();
+                const u = users[usr];
+                if (!u) { setError('Usuario no encontrado'); return; }
+                setRecoveryUser(usr);
+                setRecoveryQ(u.pregunta || 'Pregunta de seguridad');
+                setRecoveryStep(0);
+                setForgotView(true);
+                setError('');
+            };
+
+            const verifyRecovery = async () => {
+                const users = USERS();
+                const u = users[recoveryUser];
+                const ansHash = await sha256hex(recoveryAnswer.toLowerCase().trim());
+                if (ansHash === u.respuesta) {
+                    setRecoveryStep(1);
+                    setError('');
+                } else {
+                    setError('Respuesta incorrecta');
+                }
+            };
+
+            const saveNewPassword = async () => {
+                if (recoveryNewPw.length < 3) { setError('Mínimo 3 caracteres'); return; }
+                const users = USERS();
+                users[recoveryUser].hash = await sha256hex(recoveryNewPw);
+                saveUsers(users);
+                setForgotView(false);
+                setRecoveryStep(0);
+                setError('');
+                alert('✅ Contraseña actualizada. Ya puedes iniciar sesión.');
+            };
+
+            if (forgotView) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4">
+                        <div className="glass-card p-6 max-w-sm w-full fade-in">
+                            <h2 className="text-sm font-black uppercase text-teal-400 mb-4">🔐 Recuperar acceso</h2>
+                            {recoveryStep === 0 ? (
+                                <div className="space-y-4">
+                                    <p className="text-[11px] text-zinc-400">Usuario: <b className="text-white">{recoveryUser}</b></p>
+                                    <p className="text-[11px] text-zinc-500">{recoveryQ}</p>
+                                    <input className="w-full p-3 rounded font-mono text-sm outline-none" placeholder="Tu respuesta..." value={recoveryAnswer} onChange={e=>setRecoveryAnswer(e.target.value)} onKeyDown={e=>e.key==='Enter'&&verifyRecovery()} autoFocus />
+                                    {error && <div className="bg-rose-500/20 text-rose-400 border border-rose-500 p-2 rounded text-xs text-center">{error}</div>}
+                                    <button onClick={verifyRecovery} className="w-full bg-teal-500 text-black font-black p-3 rounded uppercase text-xs">Verificar</button>
+                                    <button onClick={()=>setForgotView(false)} className="w-full text-zinc-500 text-[10px] hover:text-white">← Volver</button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <p className="text-[11px] text-teal-400">✅ Identidad verificada</p>
+                                    <label className="text-[10px] text-zinc-500 uppercase block font-bold">Nueva contraseña</label>
+                                    <input type="password" className="w-full p-3 rounded font-mono text-sm outline-none" placeholder="Mín. 3 caracteres" value={recoveryNewPw} onChange={e=>setRecoveryNewPw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&saveNewPassword()} autoFocus />
+                                    {error && <div className="bg-rose-500/20 text-rose-400 border border-rose-500 p-2 rounded text-xs text-center">{error}</div>}
+                                    <button onClick={saveNewPassword} className="w-full bg-teal-500 text-black font-black p-3 rounded uppercase text-xs">Guardar nueva contraseña</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="glass-card p-6 max-w-sm w-full fade-in">
+                        <div className="text-center mb-5">
+                            <h1 className="text-2xl font-black uppercase tracking-tighter">Finance<span className="text-teal-500">Lab</span></h1>
+                            <p className="text-[10px] text-zinc-500 mt-1 tracking-[0.2em]">HOGAR JOSUÉ & ABIGAIL</p>
+                        </div>
+                        <form onSubmit={handleLogin} className="space-y-3">
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">Usuario</label>
+                                <div className="flex gap-2">
+                                    {['josue','abi'].map(u => (
+                                        <button key={u} type="button" onClick={()=>setUser(u)} className={`flex-1 p-3 rounded font-bold uppercase text-xs transition-all ${user===u ? 'bg-teal-500 text-black' : 'bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-teal-500'}`}>{u}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase block mb-1 font-bold">Contraseña</label>
+                                <input type="password" className="w-full p-3 rounded font-mono text-lg text-white outline-none" placeholder="••••••" value={pw} onChange={e=>setPw(e.target.value)} autoFocus />
+                            </div>
+                            {error && <div className="bg-rose-500/20 text-rose-400 border border-rose-500 p-2 rounded text-xs font-bold text-center">{error}</div>}
+                            <button type="submit" disabled={loading} className="w-full bg-teal-500 text-black font-black p-3 rounded uppercase tracking-[0.2em] text-xs hover:bg-white transition-all">
+                                {loading ? 'Verificando...' : 'Entrar'}
+                            </button>
+                        </form>
+                        <div className="mt-3 text-center">
+                            <button onClick={() => { const u = user || 'josue'; startRecovery(u); }} className="text-[10px] text-zinc-600 hover:text-teal-400 transition-colors">¿Olvidaste tu contraseña?</button>
+                        </div>
+                        <p className="text-[9px] text-zinc-600 text-center mt-3">ollincan.com/financelab</p>
+                    </div>
+                </div>
+            );
+        };
+
         // === APP PRINCIPAL ===
         const App = () => {
+            const [authed, setAuthed] = useState(() => localStorage.getItem('fl_auth') === '1');
+            const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('fl_user') || 'josue');
             const [view, setView] = useState('registro'); 
             const [loadingInitial, setLoadingInitial] = useState(true);
             const [savingGasto, setSavingGasto] = useState(false);
@@ -754,6 +1225,54 @@
                 }).catch(err => { setSavingGasto(false); setFormError("⚠️ Error del servidor."); setTimeout(()=>setFormError(""),3000); });
             }, [form, configProporcion]);
 
+            const handleLogout = () => {
+                localStorage.removeItem('fl_auth');
+                localStorage.removeItem('fl_user');
+                setAuthed(false);
+            };
+
+            if (!authed) {
+                return <LoginScreen onLogin={(user) => { setAuthed(true); setCurrentUser(user); }} />;
+            }
+
+            // ── SETTINGS VIEW ──
+            if (view === 'settings') {
+                const SettingsPanel = () => {
+                    const [spw, setSpw] = useState('');
+                    const [smsg, setSmsg] = useState('');
+                    const changePw = async () => {
+                        if (spw.length < 3) { setSmsg('Mínimo 3 caracteres'); return; }
+                        const users = USERS();
+                        users[currentUser].hash = await sha256hex(spw);
+                        saveUsers(users);
+                        setSmsg('✅ Contraseña actualizada');
+                        setSpw('');
+                        setTimeout(()=>setSmsg(''), 2500);
+                    };
+                    return (
+                        <div className="glass-card p-6 max-w-lg mx-auto fade-in">
+                            <h2 className="text-sm font-black uppercase text-teal-400 mb-4">⚙️ Ajustes</h2>
+                            <p className="text-[11px] text-zinc-400 mb-4">Sesión: <b className="text-white uppercase">{currentUser}</b></p>
+                            <div className="space-y-3 mb-6">
+                                <label className="text-[10px] text-zinc-500 uppercase block font-bold">Cambiar contraseña</label>
+                                <div className="flex gap-2">
+                                    <input type="password" className="flex-1 p-2 rounded font-mono text-sm outline-none" placeholder="Nueva contraseña" value={spw} onChange={e=>setSpw(e.target.value)} />
+                                    <button onClick={changePw} className="bg-teal-500 text-black font-bold px-4 py-2 rounded text-xs uppercase">Guardar</button>
+                                </div>
+                                {smsg && <div className={`text-xs font-bold p-2 rounded ${smsg.includes('✅')?'bg-teal-500/20 text-teal-400':'bg-rose-500/20 text-rose-400'}`}>{smsg}</div>}
+                            </div>
+                            <button onClick={handleLogout} className="w-full bg-rose-500/20 text-rose-400 border border-rose-500/40 font-bold p-3 rounded uppercase text-xs hover:bg-rose-500/30 transition-all">Cerrar sesión</button>
+                        </div>
+                    );
+                };
+                return (
+                    <div className="max-w-3xl mx-auto p-4 pt-6">
+                        <button onClick={() => setView('dash')} className="text-zinc-500 hover:text-white text-xs mb-4 block">← Volver al tablero</button>
+                        <SettingsPanel />
+                    </div>
+                );
+            }
+
             return (
                 <div className="max-w-5xl mx-auto p-4 md:p-6 pb-20">
                     <button id="refreshBtn" className="hidden" onClick={loadData}></button>
@@ -761,18 +1280,22 @@
                         <div className="flex justify-between w-full md:w-auto items-center">
                             <div>
                                 <h1 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-2">Finance<span className="text-teal-500">Lab</span> {!navigator.onLine && <span className="text-[9px] bg-amber-500 text-black px-2 py-1 rounded font-bold">OFFLINE</span>}</h1>
-                                <p className="text-[9px] text-zinc-500 tracking-[0.3em]">HOGAR JOSUÉ & ABIGAIL</p>
+                                <p className="text-[9px] text-zinc-500 tracking-[0.3em] flex items-center gap-2 hide-standalone">HOGAR JOSUÉ & ABIGAIL · <span className="uppercase text-teal-500/70">{currentUser}</span></p>
                             </div>
-                            <button onClick={() => setIsLightMode(!isLightMode)} className="md:ml-4 p-2 rounded bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors">
-                                {isLightMode ? <IconMoon /> : <IconSun />}
-                            </button>
+                            <div className="flex gap-1">
+                                <button onClick={() => setView('settings')} title="Ajustes" className="p-2 rounded bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white transition-colors text-xs">⚙️</button>
+                                <button onClick={() => setIsLightMode(!isLightMode)} className="md:ml-1 p-2 rounded bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors">
+                                    {isLightMode ? <IconMoon /> : <IconSun />}
+                                </button>
+                            </div>
                         </div>
-                        <nav className="flex gap-2 bg-zinc-900/50 p-1 rounded border border-zinc-800 overflow-x-auto">
+                        <nav className="flex gap-2 bg-zinc-900/50 p-1 rounded border border-zinc-800 overflow-x-auto pwa-compact">
                             {['registro', 'recordatorios', 'cuentas', 'dash', 'plan'].map(v => (
                                 <button key={v} onClick={() => { if(v!=='registro') loadData(); setView(v); setForm(prev => ({...prev, id_edit: null})); }} className={`px-4 py-2 text-[10px] font-bold uppercase rounded transition-colors whitespace-nowrap ${view === v ? 'bg-[#2dd4bf] text-black' : 'text-zinc-500 hover:text-white'}`}>
                                     {v==='dash'?'Tablero':(v==='recordatorios'?'Memo':v)}
                                 </button>
                             ))}
+                            <button onClick={() => setView('settings')} title="Ajustes" className={`px-2 py-2 text-[10px] font-bold uppercase rounded transition-colors ${view==='settings'?'bg-[#2dd4bf] text-black':'text-zinc-600 hover:text-white'}`}>⚙️</button>
                         </nav>
                     </header>
 
