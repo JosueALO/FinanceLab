@@ -783,8 +783,9 @@
                             const maxActivo = showTrendActivo ? Math.max(...patrimonioData.map(d=>d.activo), 1) : 0;
                             const maxPasivo = showTrendPasivo ? Math.max(...patrimonioData.map(d=>d.pasivo), 1) : 0;
                             const maxPat = showTrendPatrimonio ? Math.max(...patrimonioData.map(d=>Math.abs(d.patrimonio)), 1) : 0;
+                            const minPat = showTrendPatrimonio ? Math.abs(Math.min(...patrimonioData.map(d=>d.patrimonio), 0)) : 0;
                             const niceMax = Math.ceil(Math.max(maxActivo, maxPat) / 1000) * 1000 || 1000;
-                            const niceMin = -Math.ceil(maxPasivo / 1000) * 1000;
+                            const niceMin = -Math.ceil(Math.max(maxPasivo, minPat) / 1000) * 1000;
                             const yRange = niceMax - niceMin;
                             const H = trendExpanded ? 300 : 200, W_OFF = 55, W_RIGHT = 20, BOT = 30, TOP = 12;
                             const chartH = H + BOT + TOP;
@@ -1486,8 +1487,9 @@
                             const maxActivo = showTrendActivo ? Math.max(...patrimonioData.map(d=>d.activo), 1) : 0;
                             const maxPasivo = showTrendPasivo ? Math.max(...patrimonioData.map(d=>d.pasivo), 1) : 0;
                             const maxPat = showTrendPatrimonio ? Math.max(...patrimonioData.map(d=>Math.abs(d.patrimonio)), 1) : 0;
+                            const minPat = showTrendPatrimonio ? Math.abs(Math.min(...patrimonioData.map(d=>d.patrimonio), 0)) : 0;
                             const niceMax = Math.ceil(Math.max(maxActivo, maxPat) / 1000) * 1000 || 1000;
-                            const niceMin = -Math.ceil(maxPasivo / 1000) * 1000;
+                            const niceMin = -Math.ceil(Math.max(maxPasivo, minPat) / 1000) * 1000;
                             const yRange = niceMax - niceMin;
                             const H = trendExpanded ? 280 : 180, W_OFF = 55, W_RIGHT = 20, BOT = 28, TOP = 12;
                             const chartH = H + BOT + TOP;
