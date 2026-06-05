@@ -9,8 +9,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Finance Lab">
     <link rel="manifest" href="manifest.json" crossorigin="use-credentials">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiMwNTA1MDUiLz48dGV4dCB4PSI1MCUiIHk9IjUyJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMjAiIGZvbnQtd2VpZ2h0PSI5MDAiIGZpbGw9IiM1ZGJkOGMiPkZMPC90ZXh0Pjwvc3ZnPg==">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiMwNTA1MDUiLz48dGV4dCB4PSI1MCUiIHk9IjUyJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMjAiIGZvbnQtd2VpZ2h0PSI5MDAiIGZpbGw9IiM1ZGJkOGMiPkZMPC90ZXh0Pjwvc3ZnPg==">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -2606,6 +2607,14 @@
             );
         };
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+    <script>
+        // ── Register Service Worker (required for PWA app-drawer install on Android) ──
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/financelab/sw.js', { scope: '/financelab/' })
+                .then(reg => console.log('[SW] Registered. Scope:', reg.scope))
+                .catch(err => console.warn('[SW] Registration failed:', err));
+        }
     </script>
 </body>
 </html>

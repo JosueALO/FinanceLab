@@ -1,5 +1,5 @@
 // Finance Lab Service Worker — enables PWA app-drawer install on Android
-const CACHE_NAME = 'financelab-v7';
+const CACHE_NAME = 'financelab-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -29,8 +29,10 @@ self.addEventListener('activate', (event) => {
 
 // ── Fetch: network-first, cache fallback ──
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests within our scope
+  // Only handle GET requests
   if (event.request.method !== 'GET') return;
+
+  // Skip chrome-extension and non-http(s) requests
   const url = new URL(event.request.url);
   if (!url.protocol.startsWith('http')) return;
 
