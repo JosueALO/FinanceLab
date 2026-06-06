@@ -1082,6 +1082,58 @@
 
             const totalScope = logsScope.reduce((acc,l) => acc + getAmt(l), 0);
 
+            // ── Ingresos del Período ──
+            const ingresosPeriodo = useMemo(() => {
+                return rawLogs
+                    .filter(l => l.Periodo_Pago === periodoActivo && l.Tipo_Operacion === 'Ingreso')
+                    .filter(l => {
+                        if (viewScope === 'Compartido') return !isPersonal(l);
+                        return getAmt(l) > 0;
+                    })
+                    .reduce((acc, l) => acc + getAmt(l), 0);
+            }, [rawLogs, periodoActivo, viewScope]);
+
+            // ── Transferencias netas del Período ──
+            const transferenciasPeriodo = useMemo(() => {
+                const transfers = rawLogs.filter(l => l.Periodo_Pago === periodoActivo && l.Tipo_Operacion === 'Transferencia');
+                let neto = 0;
+                transfers.forEach(t => {
+                    const m = Number(t.Monto_Parcial) || 0;
+                    const propOrigen = mapCuentas[t.Cuenta_Origen];
+                    const propDestino = mapCuentas[t.Cuenta_Destino];
+                    if (viewScope === 'Compartido') {
+                        // Hogar: solo cuenta si cruza ambito personal
+                        if (propOrigen === 'Hogar' && propDestino && propDestino !== 'Hogar') neto -= m;
+                        else if (propDestino === 'Hogar' && propOrigen && propOrigen !== 'Hogar') neto += m;
+                    } else {
+                        // Vista personal: flujo neto hacia/desde la persona
+                        if (propOrigen === viewScope && propDestino !== viewScope) neto -= m;
+                        if (propDestino === viewScope && propOrigen !== viewScope) neto += m;
+                    }
+                });
+                return neto;
+            }, [rawLogs, periodoActivo, viewScope, mapCuentas]);
+
+            // ── Acumulados (todos los periodos hasta el actual) ──
+            const acumulados = useMemo(() => {
+                const parseP = (p) => { const [d,m,y] = p.split('/').map(Number); return new Date(y, m-1, d); };
+                const fechaActivo = parseP(periodoActivo);
+                const periodosHasta = [...periodos]
+                    .filter(p => parseP(p) <= fechaActivo)
+                    .sort((a,b) => parseP(a) - parseP(b));
+                let gastoAcum = 0, ingresoAcum = 0;
+                periodosHasta.forEach(p => {
+                    rawLogs.filter(l => l.Periodo_Pago === p && l.Es_Recordatorio !== 'TRUE').forEach(l => {
+                        if (viewScope === 'Compartido' && isPersonal(l)) return;
+                        const amt = getAmt(l);
+                        if (amt <= 0) return;
+                        if (l.Tipo_Operacion === 'Gasto') gastoAcum += amt;
+                        else if (l.Tipo_Operacion === 'Ingreso') ingresoAcum += amt;
+                    });
+                });
+                return { gastoAcum, ingresoAcum };
+            }, [rawLogs, periodoActivo, viewScope, periodos]);
+
             // ── Daily Summary ──
             const dailySummary = useMemo(() => {
                 const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -1120,6 +1172,7 @@
             const [ttCorte, setTtCorte] = useState(null);
             const [ttVence, setTtVence] = useState(null);
             const [balanceTooltip, setBalanceTooltip] = useState(null);
+            const [balanceModo, setBalanceModo] = useState('periodo'); // 'periodo' | 'acumulado'
             const tdcData = useMemo(() => {
                 const hoy = new Date();
                 const diaHoy = hoy.getDate();
@@ -1262,36 +1315,82 @@
 
                     {/* ── Card 1: Balance Summary ── */}
                     <div className="glass-card p-5">
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3 font-bold">Balance General · {viewScope==='Compartido'?'Hogar':viewScope}</p>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-3">
+                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Balance General · {viewScope==='Compartido'?'Hogar':viewScope}</p>
+                            {/* Toggle Período / Acumulado */}
+                            <button onClick={()=>{setBalanceModo(balanceModo==='periodo'?'acumulado':'periodo');setBalanceTooltip(null)}} className="flex items-center gap-0 bg-zinc-900 border border-zinc-800 rounded-full p-0.5 transition-colors hover:border-zinc-700" title={balanceModo==='periodo'?'Cambiar a vista Acumulada':'Cambiar a vista del Período'}>
+                                <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all flex items-center gap-1 ${balanceModo==='periodo'?'bg-[#5dbd8c] text-black':'text-zinc-500'}`}>
+                                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                    Período
+                                </span>
+                                <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all flex items-center gap-1 ${balanceModo==='acumulado'?'bg-[#5dbd8c] text-black':'text-zinc-500'}`}>
+                                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                                    Acum.
+                                </span>
+                            </button>
+                        </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="relative">
-                                <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='gasto'?null:'gasto')}>
-                                    Gasto del Período <span className="text-[8px] text-zinc-700">{balanceTooltip==='gasto'?'▲':'▼'}</span>
-                                </p>
-                                {balanceTooltip==='gasto' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Suma de todos los gastos del corte actual. No incluye transferencias. Se ajusta según la vista: Hogar = gastos compartidos, Josué/Abi = gastos personales.</div>)}
-                                <p className="text-2xl font-bold accent-glow mt-1">{formatoMoneda(totalScope)}</p>
-                            </div>
-                            <div className="relative">
-                                <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='activos'?null:'activos')}>
-                                    Activos <span className="text-[8px] text-zinc-700">{balanceTooltip==='activos'?'▲':'▼'}</span>
-                                </p>
-                                {balanceTooltip==='activos' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Valor actual de cuentas de activo (efectivo, débito, ahorro). Saldo inicial + ingresos − gastos ± transferencias, acumulado desde el primer registro hasta este corte.</div>)}
-                                <p className="text-2xl font-bold text-[#22c55e] mt-1">{formatoMoneda(balanceScope.activo)}</p>
-                            </div>
-                            <div className="relative">
-                                <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='pasivos'?null:'pasivos')}>
-                                    Pasivos (TDC) <span className="text-[8px] text-zinc-700">{balanceTooltip==='pasivos'?'▲':'▼'}</span>
-                                </p>
-                                {balanceTooltip==='pasivos' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Saldo actual de tarjetas de crédito y deudas. Acumula todos los cargos y pagos desde el primer registro hasta este corte. Un valor alto = más deuda pendiente.</div>)}
-                                <p className="text-2xl font-bold text-rose-400 mt-1">{formatoMoneda(balanceScope.pasivo)}</p>
-                            </div>
-                            <div className="relative">
-                                <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='patrimonio'?null:'patrimonio')}>
-                                    Patrimonio Neto <span className="text-[8px] text-zinc-700">{balanceTooltip==='patrimonio'?'▲':'▼'}</span>
-                                </p>
-                                {balanceTooltip==='patrimonio' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Activos − Pasivos = tu riqueza neta. Lo que tienes menos lo que debes. Positivo = patrimonio crece. Negativo = debes más de lo que posees.</div>)}
-                                <p className={`text-2xl font-bold mt-1 ${balanceScope.patrimonio >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(balanceScope.patrimonio)}</p>
-                            </div>
+                            {balanceModo === 'periodo' ? (<>
+                                {/* ── MODO PERÍODO ── */}
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='gasto'?null:'gasto')}>
+                                        Gasto del Período <span className="text-[8px] text-zinc-700">{balanceTooltip==='gasto'?'▲':'▼'}</span>
+                                    </p>
+                                    {balanceTooltip==='gasto' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Suma de todos los gastos realizados durante este corte. Sin transferencias. Se ajusta según la vista seleccionada.</div>)}
+                                    <p className="text-2xl font-bold accent-glow mt-1">{formatoMoneda(totalScope)}</p>
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='ingreso'?null:'ingreso')}>
+                                        Ingreso del Período <span className="text-[8px] text-zinc-700">{balanceTooltip==='ingreso'?'▲':'▼'}</span>
+                                    </p>
+                                    {balanceTooltip==='ingreso' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Suma de todos los ingresos registrados en este corte (nómina, depósitos, etc.). Se ajusta según la vista seleccionada.</div>)}
+                                    <p className="text-2xl font-bold text-[#22c55e] mt-1">{formatoMoneda(ingresosPeriodo)}</p>
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='transf'?null:'transf')}>
+                                        Transferencias <span className="text-[8px] text-zinc-700">{balanceTooltip==='transf'?'▲':'▼'}</span>
+                                    </p>
+                                    {balanceTooltip==='transf' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Flujo neto por transferencias en el período. Positivo = recibiste más de lo que enviaste. En vista Hogar solo cuenta cruces con cuentas personales.</div>)}
+                                    <p className={`text-2xl font-bold mt-1 ${transferenciasPeriodo >= 0 ? 'text-[#3b82f6]' : 'text-amber-400'}`}>{formatoMoneda(transferenciasPeriodo)}</p>
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='resultado'?null:'resultado')}>
+                                        Resultado <span className="text-[8px] text-zinc-700">{balanceTooltip==='resultado'?'▲':'▼'}</span>
+                                    </p>
+                                    {balanceTooltip==='resultado' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Ingresos − Gastos ± Transferencias del período. Es tu flujo neto: positivo = generaste ahorro este corte, negativo = gastaste más de lo que ingresó.</div>)}
+                                    {(() => { const r = ingresosPeriodo - totalScope + transferenciasPeriodo; return (<p className={`text-2xl font-bold mt-1 ${r >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(r)}</p>); })()}
+                                </div>
+                            </>) : (<>
+                                {/* ── MODO ACUMULADO ── */}
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='gastoAcum'?null:'gastoAcum')}>
+                                        Gasto Acumulado <span className="text-[8px] text-zinc-700">{balanceTooltip==='gastoAcum'?'▲':'▼'}</span>
+                                    </p>
+                                    {balanceTooltip==='gastoAcum' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Suma de todos los gastos desde el primer registro hasta este corte. Te da perspectiva de cuánto has gastado históricamente.</div>)}
+                                    <p className="text-2xl font-bold accent-glow mt-1">{formatoMoneda(acumulados.gastoAcum)}</p>
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='activos'?null:'activos')}>
+                                        Activos <span className="text-[8px] text-zinc-700">{balanceTooltip==='activos'?'▲':'▼'}</span>
+                                    </p>
+                                    {balanceTooltip==='activos' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Valor actual de tus cuentas de activo (efectivo, débito, ahorro). Saldo inicial + ingresos − gastos ± transferencias, acumulado desde el primer registro.</div>)}
+                                    <p className="text-2xl font-bold text-[#22c55e] mt-1">{formatoMoneda(balanceScope.activo)}</p>
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='pasivos'?null:'pasivos')}>
+                                        Pasivos (TDC) <span className="text-[8px] text-zinc-700">{balanceTooltip==='pasivos'?'▲':'▼'}</span>
+                                    </p>
+                                    {balanceTooltip==='pasivos' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Saldo actual de tarjetas de crédito y deudas. Acumula cargos y pagos desde el primer registro. Un valor alto = más deuda pendiente.</div>)}
+                                    <p className="text-2xl font-bold text-rose-400 mt-1">{formatoMoneda(balanceScope.pasivo)}</p>
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='patrimonio'?null:'patrimonio')}>
+                                        Patrimonio Neto <span className="text-[8px] text-zinc-700">{balanceTooltip==='patrimonio'?'▲':'▼'}</span>
+                                    </p>
+                                    {balanceTooltip==='patrimonio' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Activos − Pasivos = tu riqueza neta. Lo que tienes menos lo que debes. Positivo = patrimonio crece. Negativo = debes más de lo que posees.</div>)}
+                                    <p className={`text-2xl font-bold mt-1 ${balanceScope.patrimonio >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(balanceScope.patrimonio)}</p>
+                                </div>
+                            </>)}
                         </div>
                     </div>
 
