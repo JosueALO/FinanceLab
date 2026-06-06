@@ -1074,6 +1074,8 @@
             // ── Get scope amount ──
             const getAmt = (l) => viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi));
             const isPersonal = (l) => l.Tipo_Gasto && l.Tipo_Gasto.includes('Personal');
+            // Helper: comparar propietario cuenta vs scope (maneja tilde Josué/Josue)
+            const mismoProp = (propCuenta, scope) => propCuenta === scope || (scope === 'Josue' && propCuenta === 'Josué');
             
             const logsScope = useMemo(() => logsPeriodo.filter(l => {
                 if (l.Tipo_Operacion !== 'Gasto') return false;
@@ -1090,7 +1092,7 @@
                     .filter(l => {
                         if (viewScope === 'Compartido') return !isPersonal(l);
                         const propCuenta = mapCuentas[l.Cuenta_Origen];
-                        return propCuenta === viewScope;
+                        return mismoProp(propCuenta, viewScope);
                     })
                     .reduce((acc, l) => acc + (Number(l.Monto_Parcial) || 0), 0);
             }, [rawLogs, periodoActivo, viewScope, mapCuentas]);
@@ -1112,7 +1114,7 @@
                         } else if (l.Tipo_Operacion === 'Ingreso') {
                             // Ingresos: atribuir al propietario de la cuenta, no dividir
                             const propCuenta = mapCuentas[l.Cuenta_Origen];
-                            if (viewScope === 'Compartido' || propCuenta === viewScope) {
+                            if (viewScope === 'Compartido' || mismoProp(propCuenta, viewScope)) {
                                 ingresoAcum += (Number(l.Monto_Parcial) || 0);
                             }
                         }
@@ -1248,7 +1250,7 @@
             const balanceScope = useMemo(() => {
                 const cuentasScope = viewScope === 'Compartido'
                     ? cuentas
-                    : cuentas.filter(c => c.propietario === viewScope);
+                    : cuentas.filter(c => mismoProp(c.propietario, viewScope));
                 if (cuentasScope.length === 0) return { activo: 0, pasivo: 0, patrimonio: 0 };
                 // Parsear fecha del periodo activo
                 const parseP = (p) => { const [d,m,y] = p.split('/').map(Number); return new Date(y, m-1, d); };
