@@ -1273,13 +1273,15 @@
                         if (l.Cuenta_Destino && l.Tipo_Operacion === 'Transferencia' && balances[l.Cuenta_Destino] !== undefined) balances[l.Cuenta_Destino] += m;
                     });
                 });
-                let activo = 0, pasivo = 0;
+                let activo = 0, pasivo = 0, netoReal = 0;
                 cuentasScope.forEach(c => {
                     const bal = balances[c.nombre] || 0;
-                    if (c.tipo && c.tipo.trim() === 'Activo') activo += Math.max(0, bal);
-                    else if (c.tipo && c.tipo.trim() === 'Pasivo') pasivo += Math.max(0, -bal);
+                    if (c.tipo && c.tipo.trim() === 'Activo') { activo += Math.max(0, bal); netoReal += bal; }
+                    else if (c.tipo && c.tipo.trim() === 'Pasivo') { pasivo += Math.max(0, -bal); netoReal += bal; }
                 });
-                return { activo, pasivo, patrimonio: activo - pasivo };
+                // Hogar: balance clásico (activos cap a 0). Personal: balance real (permite activos negativos)
+                const patrimonio = viewScope === 'Compartido' ? (activo - pasivo) : netoReal;
+                return { activo, pasivo, patrimonio };
             }, [cuentas, rawLogs, periodoActivo, viewScope, periodos]);
 
             // ── Recent Transactions ──
@@ -1346,7 +1348,7 @@
                                     <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='patrimonio'?null:'patrimonio')}>
                                         Patrimonio <span className="text-[8px] text-zinc-700">{balanceTooltip==='patrimonio'?'▲':'▼'}</span>
                                     </p>
-                                    {balanceTooltip==='patrimonio' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Activos − Pasivos (misma lógica que el Tablero). Tu riqueza neta al corte actual: lo que posees menos lo que debes. Filtrado por propietario de cuentas según la vista.</div>)}
+                                    {balanceTooltip==='patrimonio' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Hogar: Activos − Pasivos (balance clásico). Personal: suma neta real de todas tus cuentas — incluye saldos negativos si tus cuentas están en rojo.</div>)}
                                     <p className={`text-2xl font-bold mt-1 ${balanceScope.patrimonio >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(balanceScope.patrimonio)}</p>
                                 </div>
                             </>) : (<>
@@ -1376,7 +1378,7 @@
                                     <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='patrimonio'?null:'patrimonio')}>
                                         Patrimonio <span className="text-[8px] text-zinc-700">{balanceTooltip==='patrimonio'?'▲':'▼'}</span>
                                     </p>
-                                    {balanceTooltip==='patrimonio' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Activos − Pasivos (misma lógica que el Tablero). Tu riqueza neta al corte actual: lo que posees menos lo que debes. Filtrado por propietario de cuentas según la vista.</div>)}
+                                    {balanceTooltip==='patrimonio' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Hogar: Activos − Pasivos (balance clásico). Personal: suma neta real de todas tus cuentas — incluye saldos negativos si tus cuentas están en rojo.</div>)}
                                     <p className={`text-2xl font-bold mt-1 ${balanceScope.patrimonio >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(balanceScope.patrimonio)}</p>
                                 </div>
                             </>)}
