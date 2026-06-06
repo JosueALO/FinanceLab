@@ -1082,17 +1082,11 @@
 
             const totalScope = logsScope.reduce((acc,l) => acc + getAmt(l), 0);
 
-            // ── Balance Neto ──
-            const balanceNeto = useMemo(() => {
-                let activos = 0, pasivos = 0;
-                cuentas.forEach(c => {
-                    const logsCuenta = logsPeriodo.filter(l => l.Cuenta_Origen === c.nombre);
-                    let gastado = logsCuenta.reduce((acc,l) => acc + Number(l.Monto_Parcial||0), 0);
-                    if (c.tipo === 'Activo') activos += (Number(c.saldoInicial||0) - gastado);
-                    else pasivos += gastado;
-                });
-                return { activos, pasivos, neto: activos - pasivos };
-            }, [cuentas, logsPeriodo]);
+            // ── Balance Neto (consolidado desde patrimonioData = misma fuente del Tablero) ──
+            const ultimoBalance = useMemo(() => {
+                if (patrimonioData.length === 0) return { activo: 0, pasivo: 0, patrimonio: 0 };
+                return patrimonioData[patrimonioData.length - 1];
+            }, [patrimonioData]);
 
             // ── Daily Summary ──
             const dailySummary = useMemo(() => {
@@ -1245,15 +1239,15 @@
                             </div>
                             <div>
                                 <p className="text-[9px] text-zinc-600 uppercase">Activos</p>
-                                <p className="text-2xl font-bold text-[#22c55e] mt-1">{formatoMoneda(balanceNeto.activos)}</p>
+                                <p className="text-2xl font-bold text-[#22c55e] mt-1">{formatoMoneda(ultimoBalance.activo)}</p>
                             </div>
                             <div>
                                 <p className="text-[9px] text-zinc-600 uppercase">Pasivos (TDC)</p>
-                                <p className="text-2xl font-bold text-rose-400 mt-1">{formatoMoneda(balanceNeto.pasivos)}</p>
+                                <p className="text-2xl font-bold text-rose-400 mt-1">{formatoMoneda(ultimoBalance.pasivo)}</p>
                             </div>
                             <div>
                                 <p className="text-[9px] text-zinc-600 uppercase">Patrimonio Neto</p>
-                                <p className={`text-2xl font-bold mt-1 ${balanceNeto.neto >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(balanceNeto.neto)}</p>
+                                <p className={`text-2xl font-bold mt-1 ${ultimoBalance.patrimonio >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(ultimoBalance.patrimonio)}</p>
                             </div>
                         </div>
                     </div>
