@@ -382,6 +382,17 @@ def _grabar_operacion(p, id_unico=None):
 
         monto = f["monto"]
         p_josue, p_abi = _calc_splits(monto, f["tipo_gasto"], f["pct_j"], f["pct_a"])
+        # Fix: ingresos se atribuyen 100% al propietario de la cuenta, no se dividen
+        if f["tipo_op"] == "Ingreso" and co_id:
+            cur.execute("SELECT propietario FROM cuentas WHERE id = %s", (co_id,))
+            row = cur.fetchone()
+            if row:
+                prop = row[0]
+                if prop == 'Josué':
+                    p_josue, p_abi = monto, 0
+                elif prop == 'Abi':
+                    p_josue, p_abi = 0, monto
+                # Hogar: mantiene split definido por tipo_gasto
         periodo = _calc_periodo(f["fecha_compra"], f["compra"], ids.get("cuentas"))
 
         if f["es_rec"]:

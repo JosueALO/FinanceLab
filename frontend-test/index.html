@@ -1076,22 +1076,24 @@
             const isPersonal = (l) => l.Tipo_Gasto && l.Tipo_Gasto.includes('Personal');
             
             const logsScope = useMemo(() => logsPeriodo.filter(l => {
+                if (l.Tipo_Operacion !== 'Gasto') return false;
                 if (viewScope === 'Compartido') return !isPersonal(l);
                 return getAmt(l) > 0;
             }), [logsPeriodo, viewScope]);
 
             const totalScope = logsScope.reduce((acc,l) => acc + getAmt(l), 0);
 
-            // ── Ingresos del Período ──
+            // ── Ingresos del Período (atribuidos al propietario de la cuenta, no se dividen) ──
             const ingresosPeriodo = useMemo(() => {
                 return rawLogs
                     .filter(l => l.Periodo_Pago === periodoActivo && l.Tipo_Operacion === 'Ingreso')
                     .filter(l => {
                         if (viewScope === 'Compartido') return !isPersonal(l);
-                        return getAmt(l) > 0;
+                        const propCuenta = mapCuentas[l.Cuenta_Origen];
+                        return propCuenta === viewScope;
                     })
-                    .reduce((acc, l) => acc + getAmt(l), 0);
-            }, [rawLogs, periodoActivo, viewScope]);
+                    .reduce((acc, l) => acc + (Number(l.Monto_Parcial) || 0), 0);
+            }, [rawLogs, periodoActivo, viewScope, mapCuentas]);
 
             // ── Transferencias netas del Período ──
             const transferenciasPeriodo = useMemo(() => {
@@ -1125,14 +1127,20 @@
                 periodosHasta.forEach(p => {
                     rawLogs.filter(l => l.Periodo_Pago === p && l.Es_Recordatorio !== 'TRUE').forEach(l => {
                         if (viewScope === 'Compartido' && isPersonal(l)) return;
-                        const amt = getAmt(l);
-                        if (amt <= 0) return;
-                        if (l.Tipo_Operacion === 'Gasto') gastoAcum += amt;
-                        else if (l.Tipo_Operacion === 'Ingreso') ingresoAcum += amt;
+                        if (l.Tipo_Operacion === 'Gasto') {
+                            const amt = getAmt(l);
+                            if (amt > 0) gastoAcum += amt;
+                        } else if (l.Tipo_Operacion === 'Ingreso') {
+                            // Ingresos: atribuir al propietario de la cuenta, no dividir
+                            const propCuenta = mapCuentas[l.Cuenta_Origen];
+                            if (viewScope === 'Compartido' || propCuenta === viewScope) {
+                                ingresoAcum += (Number(l.Monto_Parcial) || 0);
+                            }
+                        }
                     });
                 });
                 return { gastoAcum, ingresoAcum };
-            }, [rawLogs, periodoActivo, viewScope, periodos]);
+            }, [rawLogs, periodoActivo, viewScope, periodos, mapCuentas]);
 
             // ── Daily Summary ──
             const dailySummary = useMemo(() => {
