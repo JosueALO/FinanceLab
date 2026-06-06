@@ -1082,12 +1082,6 @@
 
             const totalScope = logsScope.reduce((acc,l) => acc + getAmt(l), 0);
 
-            // ── Balance Neto (consolidado desde patrimonioData = misma fuente del Tablero) ──
-            const ultimoBalance = useMemo(() => {
-                if (patrimonioData.length === 0) return { activo: 0, pasivo: 0, patrimonio: 0 };
-                return patrimonioData[patrimonioData.length - 1];
-            }, [patrimonioData]);
-
             // ── Daily Summary ──
             const dailySummary = useMemo(() => {
                 const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -1208,6 +1202,12 @@
                     return { label: p.label, activo, pasivo, patrimonio: activo - pasivo };
                 });
             }, [rawLogs, periodoActivo, trendMonths, cuentas]);
+
+            // ── Balance Neto (consolidado desde patrimonioData = misma fuente del Tablero) ──
+            const ultimoBalance = useMemo(() => {
+                if (patrimonioData.length === 0) return { activo: 0, pasivo: 0, patrimonio: 0 };
+                return patrimonioData[patrimonioData.length - 1];
+            }, [patrimonioData]);
 
             // ── Recent Transactions ──
             const recentLogs = useMemo(() => {
