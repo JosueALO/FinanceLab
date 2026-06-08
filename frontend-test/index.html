@@ -199,8 +199,7 @@
         const IconChevronLeft = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>;
 
         // === PESTAÑA: RECORDATORIOS ===
-        const RecordatoriosTab = React.memo(({ logs, onEdit, loadData }) => {
-            const [viewScope, setViewScope] = useState('Compartido');
+        const RecordatoriosTab = React.memo(({ logs, onEdit, loadData, viewScope, setViewScope }) => {
             const [busqueda, setBusqueda] = useState('');
             const [lanzandoId, setLanzandoId] = useState(null);
             const [deletingRecId, setDeletingRecId] = useState(null); 
@@ -404,8 +403,7 @@
         });
 
         // === PESTAÑA: TABLERO ===
-        const Dashboard = React.memo(({ rawLogs, presupuesto, cuentas, onEdit, periodoActivo, setPeriodoActivo, periodos }) => {
-            const [viewScope, setViewScope] = useState('Compartido');
+        const Dashboard = React.memo(({ rawLogs, presupuesto, cuentas, onEdit, periodoActivo, setPeriodoActivo, periodos, viewScope, setViewScope }) => {
             const [deletingLog, setDeletingLog] = useState(null);
             const [busqueda, setBusqueda] = useState('');
             const busquedaDebounced = useDebounce(busqueda, 250);
@@ -1062,8 +1060,7 @@
         const IconPlus = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
 
         // === PANEL (Bluecoins-style Overview) ===
-        const PanelView = React.memo(({ rawLogs, cuentas, presupuesto, onAdd, periodoActivo, setPeriodoActivo, periodos }) => {
-            const [viewScope, setViewScope] = useState('Compartido');
+        const PanelView = React.memo(({ rawLogs, cuentas, presupuesto, onAdd, periodoActivo, setPeriodoActivo, periodos, viewScope, setViewScope }) => {
             const mapCuentas = useMemo(() => { let map = {}; cuentas.forEach(c => { map[c.nombre] = c.propietario; map[c.tipo] = (map[c.tipo]||[]).concat(c.propietario); }); return map; }, [cuentas]);
             const getPeriodoActual = () => { const hoy = new Date(); let m = hoy.getMonth(), a = hoy.getFullYear(); if (hoy.getDate() > 19) m += 1; const u = new Date(a, m + 1, 0); return `${String(u.getDate()).padStart(2,'0')}/${String(u.getMonth()+1).padStart(2,'0')}/${u.getFullYear()}`; };
 
@@ -2498,6 +2495,9 @@
             const [showOffline, setShowOffline] = useState(false);
             const [formError, setFormError] = useState('');
             
+            const [viewScope, setViewScope] = useState(() => { try { return localStorage.getItem('fl_scope') || 'Compartido'; } catch(e) { return 'Compartido'; } });
+            useEffect(() => { try { localStorage.setItem('fl_scope', viewScope); } catch(e) {} }, [viewScope]);
+
             const [isLightMode, setIsLightMode] = useState(() => localStorage.getItem('fl_theme') === 'light');
             useEffect(() => {
                 if (isLightMode) document.body.classList.add('light-mode');
@@ -2809,7 +2809,7 @@
                                     </button>
                                 </div>
                             </div>
-                        ) : view === 'recordatorios' ? <RecordatoriosTab logs={reminderLogs} onEdit={triggerEdit} loadData={loadData} /> : view === 'cuentas' ? <CuentasManager cuentas={appData.cuentas} logs={realLogs} loadData={loadData} /> : view === 'plan' ? <BudgetEditor appData={appData} setAppData={setAppData} loadData={loadData} /> : view === 'calendar' ? <CalendarView logs={[...realLogs, ...reminderLogs]} cuentas={appData.cuentas} /> : view === 'labels' ? <LabelsView logs={appData.rawLogs} loadData={loadData} /> : view === 'trash' ? <TrashView loadData={loadData} /> : view === 'panel' ? <PanelView rawLogs={realLogs} presupuesto={appData.presupuesto} cuentas={appData.cuentas} periodoActivo={periodoActivo} setPeriodoActivo={setPeriodoActivo} periodos={periodos} onAdd={(cfg) => { setShowRegistroForm(true); if (cfg && cfg.tipoOperacion) { setForm(prev => ({...prev, id_edit: null, _showCalc: false, msi: '1', esRecordatorio: false, tipoOperacion: cfg.tipoOperacion, cuentaDestino: cfg.cuentaDestino || '', cuentaOrigen: '', compra: cfg.compra || '', monto: '', tipoGasto: 'Personal (100/0)'})); } else { setForm(prev => ({...prev, id_edit: null, compra: '', monto: '', _showCalc: false, msi: '1', esRecordatorio: false})); } }} /> : <Dashboard rawLogs={realLogs} presupuesto={appData.presupuesto} cuentas={appData.cuentas} periodoActivo={periodoActivo} setPeriodoActivo={setPeriodoActivo} periodos={periodos} onEdit={triggerEdit} />
+                        ) : view === 'recordatorios' ? <RecordatoriosTab logs={reminderLogs} onEdit={triggerEdit} loadData={loadData} viewScope={viewScope} setViewScope={setViewScope} /> : view === 'cuentas' ? <CuentasManager cuentas={appData.cuentas} logs={realLogs} loadData={loadData} /> : view === 'plan' ? <BudgetEditor appData={appData} setAppData={setAppData} loadData={loadData} /> : view === 'calendar' ? <CalendarView logs={[...realLogs, ...reminderLogs]} cuentas={appData.cuentas} /> : view === 'labels' ? <LabelsView logs={appData.rawLogs} loadData={loadData} /> : view === 'trash' ? <TrashView loadData={loadData} /> : view === 'panel' ? <PanelView rawLogs={realLogs} presupuesto={appData.presupuesto} cuentas={appData.cuentas} periodoActivo={periodoActivo} setPeriodoActivo={setPeriodoActivo} periodos={periodos} viewScope={viewScope} setViewScope={setViewScope} onAdd={(cfg) => { setShowRegistroForm(true); if (cfg && cfg.tipoOperacion) { setForm(prev => ({...prev, id_edit: null, _showCalc: false, msi: '1', esRecordatorio: false, tipoOperacion: cfg.tipoOperacion, cuentaDestino: cfg.cuentaDestino || '', cuentaOrigen: '', compra: cfg.compra || '', monto: '', tipoGasto: 'Personal (100/0)'})); } else { setForm(prev => ({...prev, id_edit: null, compra: '', monto: '', _showCalc: false, msi: '1', esRecordatorio: false})); } }} /> : <Dashboard rawLogs={realLogs} presupuesto={appData.presupuesto} cuentas={appData.cuentas} periodoActivo={periodoActivo} setPeriodoActivo={setPeriodoActivo} periodos={periodos} viewScope={viewScope} setViewScope={setViewScope} onEdit={triggerEdit} />
                     )}
 
                     {/* ── FAB: Floating Action Button ── */}
