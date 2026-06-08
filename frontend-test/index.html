@@ -129,6 +129,25 @@
         body.light-mode .drawer-item:hover, body.light-mode .drawer-item:active { background: #f1f5f9; color: #0f172a; }
         body.light-mode .drawer-item.active { color: #3d8068; background: #dcfce7; border-left-color: #3d8068; }
         body.light-mode .drawer-divider { background: #e2e8f0; }
+        
+        /* ── Scrollbar sutil ── */
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #1f1f1f; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #333; }
+        body.light-mode .custom-scroll::-webkit-scrollbar-thumb { background: #d1d5db; }
+        body.light-mode .custom-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        
+        /* ── Donut center adaptativo ── */
+        .donut-center { fill: #0a0a0a; stroke: #1a1a1a; }
+        body.light-mode .donut-center { fill: #ffffff; stroke: #e2e8f0; }
+        /* Donut text: blanco en dark, oscuro en light */
+        .donut-text { fill: #ffffff; }
+        body.light-mode .donut-text { fill: #0f172a; }
+        
+        /* ── TDC bar track adaptativo ── */
+        .bar-track { background: #111; }
+        body.light-mode .bar-track { background: #e2e8f0; }
     </style>
 </head>
 <body>
@@ -619,7 +638,7 @@
                                                 </g>
                                             );
                                         })}
-                                        <circle cx="100" cy="100" r="48" fill="#0a0a0a" stroke="#1a1a1a" strokeWidth="1" />
+                                        <circle cx="100" cy="100" r="48" className="donut-center" strokeWidth="1" />
                                         {filtroCategorias.length === 1 && pieSegments.find(s => s.nombre === filtroCategorias[0]) ? (() => {
                                             const sel = pieSegments.find(s => s.nombre === filtroCategorias[0]);
                                             return (
@@ -636,7 +655,7 @@
                                             </>
                                         ) : (
                                             <>
-                                                <text x="100" y="96" textAnchor="middle" className="text-[11px] font-bold fill-white" style={{fontFamily:'JetBrains Mono,monospace'}}>{formatoMoneda(donutTotal)}</text>
+                                                <text x="100" y="96" textAnchor="middle" className="text-[11px] font-bold donut-text" style={{fontFamily:'JetBrains Mono,monospace'}}>{formatoMoneda(donutTotal)}</text>
                                                 <text x="100" y="112" textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>{donutModo === 'gasto' ? 'Total Gastos' : 'Total Ingresos'}</text>
                                             </>
                                         )}
@@ -958,7 +977,7 @@
                                     {macros.map(macro => (
                                         <div key={macro} className="mb-6 ml-2">
                                             <h3 className="text-[10px] text-[#3d8068] font-bold uppercase tracking-widest mb-2">{macro}</h3>
-                                            <div className="space-y-2">
+                                            <div className="space-y-3">
                                                 {appData.arbolCat[tipo][macro].map(c => {
                                                     if (editingCat === c) {
                                                         return (
@@ -1108,19 +1127,42 @@
             const dailySummary = useMemo(() => {
                 const hoy = new Date(); hoy.setHours(0,0,0,0);
                 const hoyStr = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
-                let today = 0, last7 = 0, last30 = 0;
+                let todayGasto = 0, last7Gasto = 0, last30Gasto = 0;
+                let todayIngreso = 0, last7Ingreso = 0, last30Ingreso = 0;
                 const allLogs = rawLogs.filter(l => l.Tipo_Operacion !== 'Transferencia' && l.Es_Recordatorio !== 'TRUE');
                 allLogs.forEach(l => {
-                    const amt = getAmt(l); if (amt <= 0) return;
-                    if (viewScope === 'Compartido' && isPersonal(l)) return;
                     const ts = l._sortTS || parseFechaTS(l.Fecha_Compra);
                     const daysAgo = Math.floor((hoy.getTime() - ts) / 86400000);
-                    if (l.Fecha_Compra === hoyStr) today += amt;
-                    if (daysAgo <= 7) last7 += amt;
-                    if (daysAgo <= 30) last30 += amt;
+                    const enHoy = l.Fecha_Compra === hoyStr;
+                    const en7d = daysAgo <= 7;
+                    const en30d = daysAgo <= 30;
+                    if (l.Tipo_Operacion === 'Gasto') {
+                        const amt = getAmt(l);
+                        if (amt > 0 && !(viewScope === 'Compartido' && isPersonal(l))) {
+                            if (enHoy) todayGasto += amt;
+                            if (en7d) last7Gasto += amt;
+                            if (en30d) last30Gasto += amt;
+                        }
+                    }
+                    if (l.Tipo_Operacion === 'Ingreso') {
+                        const monto = Number(l.Monto_Parcial) || 0;
+                        const propCuenta = mapCuentas[l.Cuenta_Origen];
+                        const aplica = viewScope === 'Compartido' ? !isPersonal(l) : mismoProp(propCuenta, viewScope);
+                        if (aplica) {
+                            if (enHoy) todayIngreso += monto;
+                            if (en7d) last7Ingreso += monto;
+                            if (en30d) last30Ingreso += monto;
+                        }
+                    }
                 });
-                return { today, avg7: last7 / 7, avg30: last30 / 30 };
-            }, [rawLogs, viewScope]);
+                return {
+                    todayGasto, avg7Gasto: last7Gasto / 7, avg30Gasto: last30Gasto / 30,
+                    todayIngreso, avg7Ingreso: last7Ingreso / 7, avg30Ingreso: last30Ingreso / 30,
+                    todayBalance: todayIngreso - todayGasto,
+                    avg7Balance: (last7Ingreso / 7) - (last7Gasto / 7),
+                    avg30Balance: (last30Ingreso / 30) - (last30Gasto / 30),
+                };
+            }, [rawLogs, viewScope, mapCuentas]);
 
             // ── Category Breakdown ──
             const categoriasData = useMemo(() => {
@@ -1129,11 +1171,29 @@
                 return Object.keys(map).map(k => ({ nombre: k, total: map[k] })).sort((a,b) => b.total - a.total);
             }, [logsScope, viewScope]);
 
+            // ── Ingresos Category Breakdown ──
+            const ingresosCategoriasData = useMemo(() => {
+                let map = {};
+                rawLogs.filter(l => l.Periodo_Pago === periodoActivo && l.Tipo_Operacion === 'Ingreso').forEach(l => {
+                    if (viewScope === 'Compartido' && isPersonal(l)) return;
+                    const propCuenta = mapCuentas[l.Cuenta_Origen];
+                    if (viewScope !== 'Compartido' && !mismoProp(propCuenta, viewScope)) return;
+                    const m = Number(l.Monto_Parcial) || 0;
+                    if (m > 0) map[l.Categoria] = (map[l.Categoria]||0) + m;
+                });
+                return Object.keys(map).map(k => ({ nombre: k, total: map[k] })).sort((a,b) => b.total - a.total);
+            }, [rawLogs, periodoActivo, viewScope, mapCuentas]);
+
+            const [catModo, setCatModo] = useState('gasto'); // 'gasto' | 'ingreso'
+
+            const catData = catModo === 'gasto' ? categoriasData : ingresosCategoriasData;
+            const catTotal = catModo === 'gasto' ? totalScope : catData.reduce((s,c) => s + c.total, 0);
+
             const pieSegments = useMemo(() => {
-                if (categoriasData.length === 0 || totalScope === 0) return [];
+                if (catData.length === 0 || catTotal === 0) return [];
                 let sa = -Math.PI/2;
-                return categoriasData.map((cat,i) => { const pct = cat.total/totalScope; const angle = pct*2*Math.PI; const ea = sa+angle; const r = {...cat,pct,color:COLORES_PASTEL[i%COLORES_PASTEL.length],startAngle:sa,endAngle:ea}; sa=ea; return r; });
-            }, [categoriasData, totalScope]);
+                return catData.map((cat,i) => { const pct = cat.total/catTotal; const angle = pct*2*Math.PI; const ea = sa+angle; const r = {...cat,pct,color:COLORES_PASTEL[i%COLORES_PASTEL.length],startAngle:sa,endAngle:ea}; sa=ea; return r; });
+            }, [catData, catTotal]);
 
             const [pieHover, setPieHover] = useState(null);
 
@@ -1143,44 +1203,99 @@
             const [ttVence, setTtVence] = useState(null);
             const [balanceTooltip, setBalanceTooltip] = useState(null);
             const [balanceModo, setBalanceModo] = useState('periodo'); // 'periodo' | 'acumulado'
+            const [dailyTooltip, setDailyTooltip] = useState(null);
+            const [dailyModo, setDailyModo] = useState('gasto'); // 'gasto' | 'balance'
+            const [tdcModo, setTdcModo] = useState('periodo'); // 'periodo' | 'acumulado'
             const tdcData = useMemo(() => {
                 const hoy = new Date();
                 const diaHoy = hoy.getDate();
                 return cuentas.filter(c => c.tipo === 'Pasivo').map(tdc => {
                     const limite = Number(tdc.limiteCredito) || Number(tdc.saldoInicial) || 50000;
-                    const logsCuenta = logsPeriodo.filter(l => l.Cuenta_Origen === tdc.nombre);
+                    const periodoLogs = rawLogs.filter(l => l.Periodo_Pago === periodoActivo);
+                    const logsCuenta = periodoLogs.filter(l => l.Cuenta_Origen === tdc.nombre);
                     let compras = 0, pagos = 0;
                     logsCuenta.forEach(l => {
                         const m = Number(l.Monto_Parcial) || 0;
-                        if (l.Tipo_Operacion === 'Gasto') compras += m;
+                        if (l.Tipo_Operacion === 'Gasto' || l.Tipo_Operacion === 'Transferencia') compras += m;
                         else if (l.Tipo_Operacion === 'Ingreso') pagos += m;
                     });
+                    const transferenciasIn = periodoLogs.filter(l => l.Cuenta_Destino === tdc.nombre && l.Tipo_Operacion === 'Transferencia');
+                    transferenciasIn.forEach(l => { pagos += Number(l.Monto_Parcial) || 0; });
                     const saldoAnterior = Number(tdc.saldoInicial) || 0;
                     const saldoPendiente = Math.max(0, saldoAnterior + compras - pagos);
                     const disponible = Math.max(0, limite - saldoPendiente);
-                    // Date progress: position in corte cycle
                     const corte = Number(tdc.diaCorte) || 19;
                     const vencimiento = Number(tdc.fechaVencimiento) || Math.min(corte + 20, 28);
-                    let diasEnCiclo = 30;
                     let diasTranscurridos = 0;
                     if (diaHoy >= corte) {
                         diasTranscurridos = diaHoy - corte;
-                        const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
-                        diasEnCiclo = ultimoDia - corte + vencimiento;
                     } else {
                         const prevUltimo = new Date(hoy.getFullYear(), hoy.getMonth(), 0).getDate();
                         diasTranscurridos = (prevUltimo - corte) + diaHoy;
-                        diasEnCiclo = prevUltimo - corte + vencimiento;
                     }
-                    const cicloPct = Math.min(100, Math.max(0, (diasTranscurridos / Math.max(1, diasEnCiclo)) * 100));
+                    const cicloPct = Math.min(100, Math.max(0, (diasTranscurridos / 30) * 100));
+                    let diasHastaVence = 0;
+                    if (diaHoy >= corte) {
+                        const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+                        diasHastaVence = (ultimoDia - diaHoy) + vencimiento;
+                    } else {
+                        diasHastaVence = vencimiento - diaHoy;
+                    }
                     return {
                         nombre: tdc.nombre, propietario: tdc.propietario,
                         saldoAnterior, limite, compras, pagos, saldoPendiente, disponible,
                         corte, vencimiento, diaCorte: corte, fechaVencimiento: vencimiento,
-                        cicloPct, pctUso: limite > 0 ? (saldoPendiente / limite) * 100 : 0,
+                        cicloPct, diasHastaVence, pctUso: limite > 0 ? (saldoPendiente / limite) * 100 : 0,
                     };
                 });
-            }, [cuentas, logsPeriodo]);
+            }, [cuentas, rawLogs, periodoActivo]);
+
+            // ── TDC Acumulado (todos los períodos) ──
+            const tdcDataAcum = useMemo(() => {
+                if (tdcModo !== 'acumulado') return [];
+                const hoy = new Date();
+                const diaHoy = hoy.getDate();
+                return cuentas.filter(c => c.tipo === 'Pasivo').map(tdc => {
+                    const limite = Number(tdc.limiteCredito) || Number(tdc.saldoInicial) || 50000;
+                    const allLogs = rawLogs.filter(l => l.Cuenta_Origen === tdc.nombre);
+                    let compras = 0, pagos = 0;
+                    allLogs.forEach(l => {
+                        const m = Number(l.Monto_Parcial) || 0;
+                        if (l.Tipo_Operacion === 'Gasto' || l.Tipo_Operacion === 'Transferencia') compras += m;
+                        else if (l.Tipo_Operacion === 'Ingreso') pagos += m;
+                    });
+                    const allTransfIn = rawLogs.filter(l => l.Cuenta_Destino === tdc.nombre && l.Tipo_Operacion === 'Transferencia');
+                    allTransfIn.forEach(l => { pagos += Number(l.Monto_Parcial) || 0; });
+                    const saldoInicial = Number(tdc.saldoInicial) || 0;
+                    const saldoPendiente = Math.max(0, saldoInicial + compras - pagos);
+                    const disponible = Math.max(0, limite - saldoPendiente);
+                    const corte = Number(tdc.diaCorte) || 19;
+                    const vencimiento = Number(tdc.fechaVencimiento) || Math.min(corte + 20, 28);
+                    let diasTranscurridos = 0;
+                    if (diaHoy >= corte) {
+                        diasTranscurridos = diaHoy - corte;
+                    } else {
+                        const prevUltimo = new Date(hoy.getFullYear(), hoy.getMonth(), 0).getDate();
+                        diasTranscurridos = (prevUltimo - corte) + diaHoy;
+                    }
+                    const cicloPct = Math.min(100, Math.max(0, (diasTranscurridos / 30) * 100));
+                    let diasHastaVence = 0;
+                    if (diaHoy >= corte) {
+                        const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+                        diasHastaVence = (ultimoDia - diaHoy) + vencimiento;
+                    } else {
+                        diasHastaVence = vencimiento - diaHoy;
+                    }
+                    return {
+                        nombre: tdc.nombre, propietario: tdc.propietario,
+                        saldoAnterior: saldoInicial, limite, compras, pagos, saldoPendiente, disponible,
+                        corte, vencimiento, diaCorte: corte, fechaVencimiento: vencimiento,
+                        cicloPct, diasHastaVence, pctUso: limite > 0 ? (saldoPendiente / limite) * 100 : 0,
+                    };
+                });
+            }, [cuentas, rawLogs, tdcModo]);
+
+            const tdcDisplay = tdcModo === 'periodo' ? tdcData : tdcDataAcum;
 
             // ── Tendencia Patrimonio (Activos, Pasivos, Neto) ──
             const mesesNombres = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -1265,10 +1380,85 @@
                 return { activo, pasivo, patrimonio };
             }, [cuentas, rawLogs, periodoActivo, viewScope, periodos]);
 
-            // ── Recent Transactions ──
-            const recentLogs = useMemo(() => {
-                return [...rawLogs].filter(l => l.Es_Recordatorio !== 'TRUE').sort((a,b) => (b._sortTS||0) - (a._sortTS||0)).slice(0, 5);
-            }, [rawLogs]);
+            // ── Balance AJ (deuda entre Josué y Abi) ──
+            const balanceAJ = useMemo(() => {
+                return rawLogs.filter(l => l.Periodo_Pago === periodoActivo).reduce((acc, curr) => {
+                    const monto = Number(curr.Monto_Parcial) || 0;
+                    if (curr.Tipo_Operacion === 'Transferencia') {
+                        if (mapCuentas[curr.Cuenta_Origen] === 'Abi' && mapCuentas[curr.Cuenta_Destino] === 'Josué') return acc - monto;
+                        if (mapCuentas[curr.Cuenta_Origen] === 'Josué' && mapCuentas[curr.Cuenta_Destino] === 'Abi') return acc + monto;
+                        return acc;
+                    }
+                    if (curr.Tipo_Operacion === 'Gasto') {
+                        const pJ = Number(curr.Participacion_Josue) || 0, pA = Number(curr.Participacion_Abi) || 0;
+                        const prop = mapCuentas[curr.Cuenta_Origen];
+                        if (prop === 'Josué') return acc + pA;
+                        if (prop === 'Abi') return acc - pJ;
+                    }
+                    return acc;
+                }, 0);
+            }, [rawLogs, periodoActivo, mapCuentas]);
+
+            // ── Balance AJ Acumulado ──
+            const balanceAJAcum = useMemo(() => {
+                const parseP = (p) => { const [d,m,y] = p.split('/').map(Number); return new Date(y, m-1, d); };
+                const fechaActivo = parseP(periodoActivo);
+                const periodosHasta = [...periodos]
+                    .filter(p => parseP(p) <= fechaActivo)
+                    .sort((a,b) => parseP(a) - parseP(b));
+                return periodosHasta.reduce((acc, p) => {
+                    return rawLogs.filter(l => l.Periodo_Pago === p).reduce((inner, curr) => {
+                        const monto = Number(curr.Monto_Parcial) || 0;
+                        if (curr.Tipo_Operacion === 'Transferencia') {
+                            if (mapCuentas[curr.Cuenta_Origen] === 'Abi' && mapCuentas[curr.Cuenta_Destino] === 'Josué') return inner - monto;
+                            if (mapCuentas[curr.Cuenta_Origen] === 'Josué' && mapCuentas[curr.Cuenta_Destino] === 'Abi') return inner + monto;
+                            return inner;
+                        }
+                        if (curr.Tipo_Operacion === 'Gasto') {
+                            const pJ = Number(curr.Participacion_Josue) || 0, pA = Number(curr.Participacion_Abi) || 0;
+                            const prop = mapCuentas[curr.Cuenta_Origen];
+                            if (prop === 'Josué') return inner + pA;
+                            if (prop === 'Abi') return inner - pJ;
+                        }
+                        return inner;
+                    }, acc);
+                }, 0);
+            }, [rawLogs, periodoActivo, periodos, mapCuentas]);
+
+            // ── Δ Patrimonio (cambio neto del período) ──
+            const deltaPatrimonio = useMemo(() => {
+                const parseP = (p) => { const [d,m,y] = p.split('/').map(Number); return new Date(y, m-1, d); };
+                const fechaActivo = parseP(periodoActivo);
+                const periodosPrevios = [...periodos]
+                    .filter(p => parseP(p) < fechaActivo)
+                    .sort((a,b) => parseP(a) - parseP(b));
+                const cuentasScope = viewScope === 'Compartido'
+                    ? cuentas
+                    : cuentas.filter(c => mismoProp(c.propietario, viewScope));
+                if (cuentasScope.length === 0) return 0;
+                const balances = {};
+                cuentasScope.forEach(c => { balances[c.nombre] = Number(c.saldoInicial) || 0; });
+                periodosPrevios.forEach(p => {
+                    rawLogs.filter(l => l.Periodo_Pago === p).forEach(l => {
+                        const m = Number(l.Monto_Parcial) || 0;
+                        if (l.Cuenta_Origen && balances[l.Cuenta_Origen] !== undefined) {
+                            if (l.Tipo_Operacion === 'Gasto' || l.Tipo_Operacion === 'Transferencia') balances[l.Cuenta_Origen] -= m;
+                            else if (l.Tipo_Operacion === 'Ingreso') balances[l.Cuenta_Origen] += m;
+                        }
+                        if (l.Cuenta_Destino && l.Tipo_Operacion === 'Transferencia' && balances[l.Cuenta_Destino] !== undefined) balances[l.Cuenta_Destino] += m;
+                    });
+                });
+                let prevActivo = 0, prevPasivo = 0, prevNetoReal = 0;
+                cuentasScope.forEach(c => {
+                    const bal = balances[c.nombre] || 0;
+                    if (c.tipo && c.tipo.trim() === 'Activo') { prevActivo += Math.max(0, bal); prevNetoReal += bal; }
+                    else if (c.tipo && c.tipo.trim() === 'Pasivo') { prevPasivo += Math.max(0, -bal); prevNetoReal += bal; }
+                });
+                const prevPatrimonio = viewScope === 'Compartido' ? (prevActivo - prevPasivo) : prevNetoReal;
+                return balanceScope.patrimonio - prevPatrimonio;
+            }, [cuentas, rawLogs, periodoActivo, viewScope, periodos, balanceScope.patrimonio]);
+
+            // ── Recent Transactions ── removed
 
             return (
                 <div className="space-y-4 fade-in pb-20">
@@ -1303,94 +1493,153 @@
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {balanceModo === 'periodo' ? (<>
-                                {/* ── MODO PERÍODO: Gasto, Ingreso, Balance, Patrimonio ── */}
-                                <div className="relative">
-                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='gasto'?null:'gasto')}>
-                                        Gasto <span className="text-[8px] text-zinc-700">{balanceTooltip==='gasto'?'▲':'▼'}</span>
-                                    </p>
-                                    {balanceTooltip==='gasto' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Total de gastos en este corte (misma lógica que Auditoría). Sin transferencias ni ingresos. Se filtra según la vista: Hogar excluye Personales, Josué/Abi solo su participación.</div>)}
-                                    <p className="text-2xl font-bold accent-glow mt-1">{formatoMoneda(totalScope)}</p>
-                                </div>
                                 <div className="relative">
                                     <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='ingreso'?null:'ingreso')}>
                                         Ingreso <span className="text-[8px] text-zinc-700">{balanceTooltip==='ingreso'?'▲':'▼'}</span>
                                     </p>
-                                    {balanceTooltip==='ingreso' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Ingresos registrados en este corte. Se atribuyen al propietario de la cuenta donde se depositaron, sin dividir.</div>)}
-                                    <p className="text-2xl font-bold text-[#22c55e] mt-1">{formatoMoneda(ingresosPeriodo)}</p>
+                                    {balanceTooltip==='ingreso' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Dinero que entró a tus cuentas este corte. Hogar suma todos los ingresos no personales; Josué/Abi solo los recibidos en sus propias cuentas. No se dividen: cada peso va al dueño de la cuenta. Verde = entrada de dinero.</div>)}
+                                    <p className="text-2xl font-bold text-[#5dbd8c] mt-1">{formatoMoneda(ingresosPeriodo)}</p>
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='gasto'?null:'gasto')}>
+                                        Gasto <span className="text-[8px] text-zinc-700">{balanceTooltip==='gasto'?'▲':'▼'}</span>
+                                    </p>
+                                    {balanceTooltip==='gasto' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Total de gastos de este corte (sin transferencias). Hogar: suma todos los gastos compartidos, excluye los personales. Josué/Abi: solo tu participación en cada gasto. Rojo = salida de dinero.</div>)}
+                                    <p className="text-2xl font-bold text-rose-400 mt-1">{formatoMoneda(totalScope)}</p>
                                 </div>
                                 <div className="relative">
                                     <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='balance'?null:'balance')}>
                                         Balance <span className="text-[8px] text-zinc-700">{balanceTooltip==='balance'?'▲':'▼'}</span>
                                     </p>
-                                    {balanceTooltip==='balance' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Ingresos − Gastos del período. Positivo = generaste ahorro este corte. Negativo = gastaste más de lo que ingresó. No incluye transferencias entre cuentas.</div>)}
+                                    {balanceTooltip==='balance' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Ingresos menos gastos del período. Positivo = generaste ahorro. Negativo = gastaste más de lo que ingresó. No incluye transferencias entre cuentas propias. Verde = ahorro. Rojo = déficit.</div>)}
                                     {(() => { const r = ingresosPeriodo - totalScope; return (<p className={`text-2xl font-bold mt-1 ${r >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(r)}</p>); })()}
                                 </div>
                                 <div className="relative">
-                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='patrimonio'?null:'patrimonio')}>
-                                        Patrimonio <span className="text-[8px] text-zinc-700">{balanceTooltip==='patrimonio'?'▲':'▼'}</span>
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='deltaPat'?null:'deltaPat')}>
+                                        Δ Patrimonio <span className="text-[8px] text-zinc-700">{balanceTooltip==='deltaPat'?'▲':'▼'}</span>
                                     </p>
-                                    {balanceTooltip==='patrimonio' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Hogar: Activos − Pasivos (balance clásico). Personal: suma neta real de todas tus cuentas — incluye saldos negativos si tus cuentas están en rojo.</div>)}
-                                    <p className={`text-2xl font-bold mt-1 ${balanceScope.patrimonio >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(balanceScope.patrimonio)}</p>
+                                    {balanceTooltip==='deltaPat' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Cuánto cambiaron tus cuentas este mes. Incluye ingresos, gastos y transferencias entre cuentas. Positivo = tu patrimonio subió. Negativo = bajó. Verde = subió. Rojo = bajó.</div>)}
+                                    <p className={`text-2xl font-bold mt-1 ${deltaPatrimonio >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(deltaPatrimonio)}</p>
                                 </div>
                             </>) : (<>
-                                {/* ── MODO ACUMULADO: Gasto Acum, Ingreso Acum, Balance Acum, Patrimonio ── */}
-                                <div className="relative">
-                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='gastoAcum'?null:'gastoAcum')}>
-                                        Gasto Acum. <span className="text-[8px] text-zinc-700">{balanceTooltip==='gastoAcum'?'▲':'▼'}</span>
-                                    </p>
-                                    {balanceTooltip==='gastoAcum' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Suma de todos los gastos desde el primer registro hasta este corte. Misma lógica de scope que Auditoría.</div>)}
-                                    <p className="text-2xl font-bold accent-glow mt-1">{formatoMoneda(acumulados.gastoAcum)}</p>
-                                </div>
                                 <div className="relative">
                                     <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='ingresoAcum'?null:'ingresoAcum')}>
                                         Ingreso Acum. <span className="text-[8px] text-zinc-700">{balanceTooltip==='ingresoAcum'?'▲':'▼'}</span>
                                     </p>
-                                    {balanceTooltip==='ingresoAcum' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Suma de todos los ingresos desde el primer registro. Atribuidos al propietario de cada cuenta, sin dividir.</div>)}
-                                    <p className="text-2xl font-bold text-[#22c55e] mt-1">{formatoMoneda(acumulados.ingresoAcum)}</p>
+                                    {balanceTooltip==='ingresoAcum' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Todo el dinero que ha entrado desde el primer registro. Hogar: suma de ingresos no personales. Josué/Abi: solo los depositados en tus cuentas. Verde = entrada acumulada.</div>)}
+                                    <p className="text-2xl font-bold text-[#5dbd8c] mt-1">{formatoMoneda(acumulados.ingresoAcum)}</p>
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='gastoAcum'?null:'gastoAcum')}>
+                                        Gasto Acum. <span className="text-[8px] text-zinc-700">{balanceTooltip==='gastoAcum'?'▲':'▼'}</span>
+                                    </p>
+                                    {balanceTooltip==='gastoAcum' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Suma de todos los gastos desde el primer registro. Hogar: gastos compartidos sin personales. Josué/Abi: tu parte de cada gasto. Rojo = salida acumulada.</div>)}
+                                    <p className="text-2xl font-bold text-rose-400 mt-1">{formatoMoneda(acumulados.gastoAcum)}</p>
                                 </div>
                                 <div className="relative">
                                     <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='balanceAcum'?null:'balanceAcum')}>
                                         Balance Acum. <span className="text-[8px] text-zinc-700">{balanceTooltip==='balanceAcum'?'▲':'▼'}</span>
                                     </p>
-                                    {balanceTooltip==='balanceAcum' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Ingresos acumulados − Gastos acumulados. Tu ahorro neto histórico: cuánto has logrado retener de todo lo que ha ingresado.</div>)}
+                                    {balanceTooltip==='balanceAcum' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Ingresos totales menos gastos totales. Tu ahorro neto histórico. Positivo = vives por debajo de tus ingresos. Negativo = has gastado más de lo que ha entrado. Verde = ahorro acumulado. Rojo = déficit acumulado.</div>)}
                                     {(() => { const r = acumulados.ingresoAcum - acumulados.gastoAcum; return (<p className={`text-2xl font-bold mt-1 ${r >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(r)}</p>); })()}
                                 </div>
                                 <div className="relative">
                                     <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='patrimonio'?null:'patrimonio')}>
                                         Patrimonio <span className="text-[8px] text-zinc-700">{balanceTooltip==='patrimonio'?'▲':'▼'}</span>
                                     </p>
-                                    {balanceTooltip==='patrimonio' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Hogar: Activos − Pasivos (balance clásico). Personal: suma neta real de todas tus cuentas — incluye saldos negativos si tus cuentas están en rojo.</div>)}
+                                    {balanceTooltip==='patrimonio' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Tu riqueza neta real acumulada. Suma el saldo actual de todas tus cuentas. Hogar: activos positivos menos deudas. Josué/Abi: saldo neto real de tus cuentas. Verde = positivo. Rojo = debes más de lo que tienes.</div>)}
                                     <p className={`text-2xl font-bold mt-1 ${balanceScope.patrimonio >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(balanceScope.patrimonio)}</p>
                                 </div>
                             </>)}
+                        </div>
+                        {/* ── Balance AJ row ── */}
+                        <div className="border-t border-zinc-800/50 pt-3 mt-3">
+                            <div className="flex items-center gap-2 relative">
+                                <span className="text-[9px] text-zinc-600 uppercase font-bold tracking-wider cursor-pointer hover:text-white transition-colors" onClick={()=>setBalanceTooltip(balanceTooltip==='balanceAJ'?null:'balanceAJ')}>
+                                    Balance AJ {balanceModo==='periodo'?'':'Acum.'} <span className="text-[8px] text-zinc-700">{balanceTooltip==='balanceAJ'?'▲':'▼'}</span>
+                                </span>
+                                {balanceTooltip==='balanceAJ' && (<div className="absolute top-full left-0 mt-1 w-56 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Balance entre Josu&eacute; y Abigail. Rastrea qui&eacute;n pag&oacute; cada gasto compartido y las transferencias entre ustedes. Positivo = Abi le debe a Josu&eacute;. Negativo = Josu&eacute; le debe a Abi. Rojo = t&uacute; debes. Verde = te deben.</div>)}
+                                {(() => {
+                                    const val = balanceModo === 'periodo' ? balanceAJ : balanceAJAcum;
+                                    if (Math.abs(val) < 0.01) return (<span className="text-sm font-mono font-bold text-[#5dbd8c] flex items-center gap-1"><IconCheck /> Saldado</span>);
+                                    if (viewScope === 'Compartido') return (<span className={`text-sm font-mono font-bold ${val > 0 ? 'text-white' : 'text-rose-400'}`}>{val > 0 ? '+' : ''}{formatoMoneda(val)}</span>);
+                                    const soyDeudor = (viewScope === 'Josue' && val < 0) || (viewScope === 'Abi' && val > 0);
+                                    return (<span className={`text-sm font-mono font-bold ${soyDeudor ? 'text-rose-400' : 'text-[#5dbd8c]'}`}>{formatoMoneda(Math.abs(val))}</span>);
+                                })()}
+                            </div>
                         </div>
                     </div>
 
                     {/* ── Card 2: Daily Summary ── */}
                     <div className="glass-card p-5">
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3 font-bold">Resumen Diario</p>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-3">
+                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Resumen Diario</p>
+                            <button onClick={()=>{setDailyModo(dailyModo==='gasto'?'balance':'gasto');setDailyTooltip(null)}} className="flex items-center gap-0 bg-zinc-900 border border-zinc-800 rounded-full p-0.5 transition-colors hover:border-zinc-700" title={dailyModo==='gasto'?'Cambiar a vista Balance':'Cambiar a vista Gasto'}>
+                                <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all flex items-center gap-1 ${dailyModo==='gasto'?'bg-[#5dbd8c] text-black':'text-zinc-500'}`}>Gasto</span>
+                                <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all flex items-center gap-1 ${dailyModo==='balance'?'bg-[#5dbd8c] text-black':'text-zinc-500'}`}>Balance</span>
+                            </button>
+                        </div>
                         <div className="grid grid-cols-3 gap-4">
-                            <div>
-                                <p className="text-[9px] text-zinc-600 uppercase">Hoy</p>
-                                <p className="text-xl font-bold text-white mt-1">{formatoMoneda(dailySummary.today)}</p>
-                            </div>
-                            <div>
-                                <p className="text-[9px] text-zinc-600 uppercase">Promedio 7 Días</p>
-                                <p className="text-xl font-bold text-[#5dbd8c] mt-1">{formatoMoneda(dailySummary.avg7)}</p>
-                            </div>
-                            <div>
-                                <p className="text-[9px] text-zinc-600 uppercase">Promedio 30 Días</p>
-                                <p className="text-xl font-bold text-zinc-400 mt-1">{formatoMoneda(dailySummary.avg30)}</p>
-                            </div>
+                            {dailyModo === 'gasto' ? (<>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setDailyTooltip(dailyTooltip==='hoyG'?null:'hoyG')}>
+                                        Gasto Hoy <span className="text-[8px] text-zinc-700">{dailyTooltip==='hoyG'?'▲':'▼'}</span>
+                                    </p>
+                                    {dailyTooltip==='hoyG' && (<div className="absolute top-full left-0 mt-1 w-48 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Total de gastos registrados hoy. ¿Cuánto llevas gastado en el día? Rojo = salida de dinero.</div>)}
+                                    <p className="text-xl font-bold text-rose-400 mt-1">{formatoMoneda(dailySummary.todayGasto)}</p>
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setDailyTooltip(dailyTooltip==='prom7G'?null:'prom7G')}>
+                                        Prom. 7d <span className="text-[8px] text-zinc-700">{dailyTooltip==='prom7G'?'▲':'▼'}</span>
+                                    </p>
+                                    {dailyTooltip==='prom7G' && (<div className="absolute top-full left-0 mt-1 w-48 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Gasto promedio diario de la última semana. Compáralo con el de 30d. Rojo = estás acelerando el gasto. Verde = vas frenando.</div>)}
+                                    {(() => { const v7 = dailySummary.avg7Gasto, v30 = dailySummary.avg30Gasto; const c = v30 > 0 && v7 > v30 ? 'text-rose-400' : 'text-[#5dbd8c]'; return (<p className={`text-xl font-bold mt-1 ${c}`}>{formatoMoneda(v7)}</p>); })()}
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setDailyTooltip(dailyTooltip==='prom30G'?null:'prom30G')}>
+                                        Prom. 30d <span className="text-[8px] text-zinc-700">{dailyTooltip==='prom30G'?'▲':'▼'}</span>
+                                    </p>
+                                    {dailyTooltip==='prom30G' && (<div className="absolute top-full left-0 mt-1 w-48 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Gasto promedio diario del último mes. Tu línea base: ritmo normal de gasto. Gris = referencia neutral.</div>)}
+                                    <p className="text-xl font-bold text-zinc-400 mt-1">{formatoMoneda(dailySummary.avg30Gasto)}</p>
+                                </div>
+                            </>) : (<>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setDailyTooltip(dailyTooltip==='hoyB'?null:'hoyB')}>
+                                        Balance Hoy <span className="text-[8px] text-zinc-700">{dailyTooltip==='hoyB'?'▲':'▼'}</span>
+                                    </p>
+                                    {dailyTooltip==='hoyB' && (<div className="absolute top-full left-0 mt-1 w-48 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Ingresos menos gastos de hoy. Verde = ingresó más de lo que gastaste. Rojo = gastaste más. Gris = sin movimiento.</div>)}
+                                    {(() => { const b = dailySummary.todayBalance; return (<p className={`text-xl font-bold mt-1 ${b >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(b)}</p>); })()}
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setDailyTooltip(dailyTooltip==='prom7B'?null:'prom7B')}>
+                                        Prom. 7d <span className="text-[8px] text-zinc-700">{dailyTooltip==='prom7B'?'▲':'▼'}</span>
+                                    </p>
+                                    {dailyTooltip==='prom7B' && (<div className="absolute top-full left-0 mt-1 w-48 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Balance diario promedio de la última semana. Verde = en promedio te sobra. Rojo = gastas más de lo que ingresa. Gris = sin movimiento.</div>)}
+                                    {(() => { const b = dailySummary.avg7Balance; return (<p className={`text-xl font-bold mt-1 ${b >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(b)}</p>); })()}
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setDailyTooltip(dailyTooltip==='prom30B'?null:'prom30B')}>
+                                        Prom. 30d <span className="text-[8px] text-zinc-700">{dailyTooltip==='prom30B'?'▲':'▼'}</span>
+                                    </p>
+                                    {dailyTooltip==='prom30B' && (<div className="absolute top-full left-0 mt-1 w-48 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Balance diario promedio del último mes. Tu tendencia de fondo. Verde = sobra. Rojo = falta. Gris = sin movimiento.</div>)}
+                                    {(() => { const b = dailySummary.avg30Balance; return (<p className={`text-xl font-bold mt-1 ${b >= 0 ? 'text-[#5dbd8c]' : 'text-rose-400'}`}>{formatoMoneda(b)}</p>); })()}
+                                </div>
+                            </>)}
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* ── Card 3: Category Donut ── */}
                         <div className="glass-card p-5">
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3 font-bold">Distribución por Categoría</p>
-                            {categoriasData.length === 0 || totalScope === 0 ? (
-                                <div className="flex items-center justify-center h-48 text-zinc-600 text-xs">Sin gastos en este período</div>
+                            <div className="flex justify-between items-center mb-3">
+                                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Distribución por Categoría</p>
+                                <button onClick={() => setCatModo(catModo === 'gasto' ? 'ingreso' : 'gasto')} className="flex items-center gap-0 bg-zinc-900 border border-zinc-800 rounded-full p-0.5 transition-colors hover:border-zinc-700">
+                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all ${catModo === 'gasto' ? 'bg-[#5dbd8c] text-black' : 'text-zinc-500'}`}>Gasto</span>
+                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all ${catModo === 'ingreso' ? 'bg-[#5dbd8c] text-black' : 'text-zinc-500'}`}>Ingreso</span>
+                                </button>
+                            </div>
+                            {catData.length === 0 || catTotal === 0 ? (
+                                <div className="flex items-center justify-center h-48 text-zinc-600 text-xs">Sin ${catModo === 'gasto' ? 'gastos' : 'ingresos'} en este período</div>
                             ) : (
                                 <div className="flex flex-col items-center">
                                     <div className="relative">
@@ -1411,121 +1660,85 @@
                                                     </g>
                                                 );
                                             })}
-                                            <circle cx="100" cy="100" r="48" fill="#0a0a0a" stroke="#1a1a1a" strokeWidth="1"/>
+                                            <circle cx="100" cy="100" r="48" className="donut-center" strokeWidth="1"/>
                                             {pieHover !== null && pieSegments[pieHover] ? (<>
                                                 <text x="100" y="90" textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono'}}>{pieSegments[pieHover].nombre}</text>
                                                 <text x="100" y="108" textAnchor="middle" className="text-[13px] font-bold" fill={pieSegments[pieHover].color} style={{fontFamily:'JetBrains Mono'}}>{(pieSegments[pieHover].pct*100).toFixed(1)}%</text>
                                                 <text x="100" y="122" textAnchor="middle" className="text-[7px] fill-zinc-500" style={{fontFamily:'JetBrains Mono'}}>{formatoMoneda(pieSegments[pieHover].total)}</text>
                                             </>) : (<>
-                                                <text x="100" y="96" textAnchor="middle" className="text-[11px] font-bold fill-white" style={{fontFamily:'JetBrains Mono'}}>{formatoMoneda(totalScope)}</text>
+                                                <text x="100" y="96" textAnchor="middle" className="text-[11px] font-bold donut-text" style={{fontFamily:'JetBrains Mono'}}>{formatoMoneda(catTotal)}</text>
                                                 <text x="100" y="112" textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono'}}>Total</text>
                                             </>)}
                                         </svg>
                                     </div>
-                                    <div className="w-full mt-3 space-y-1 max-h-32 overflow-y-auto">
-                                        {categoriasData.slice(0,5).map((cat,i) => (
-                                            <div key={cat.nombre} className="flex justify-between items-center text-[10px] px-2 py-1 rounded hover:bg-zinc-900/50 cursor-pointer" onMouseEnter={()=>setPieHover(i)} onMouseLeave={()=>setPieHover(null)}>
-                                                <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:COLORES_PASTEL[i%COLORES_PASTEL.length]}}></span><span className="text-zinc-400 truncate max-w-[140px]">{cat.nombre}</span></div>
-                                                <span className="font-mono text-[#5dbd8c]">{formatoMoneda(cat.total)}</span>
-                                            </div>
-                                        ))}
+                                    <div className="w-full mt-3 space-y-1 max-h-40 overflow-y-auto custom-scroll">
+                                        {catData.map((cat,i) => (<div key={cat.nombre} className="flex justify-between items-center text-[10px] px-2 py-1 rounded hover:bg-zinc-900/50 cursor-pointer" onMouseEnter={()=>setPieHover(i)} onMouseLeave={()=>setPieHover(null)}><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:COLORES_PASTEL[i%COLORES_PASTEL.length]}}></span><span className="text-zinc-400 truncate max-w-[140px]">{cat.nombre}</span></div><span className="font-mono text-[#5dbd8c]">{formatoMoneda(cat.total)}</span></div>))}
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        {/* ── Card 4: TDC Bluecoins-style ── */}
+                        {/* ── Card 4: TDC ── */}
                         <div className="glass-card p-5">
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3 font-bold">Tarjetas de Crédito</p>
-                            {tdcData.length === 0 ? (
+                            <div className="flex justify-between items-center mb-3">
+                                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Tarjetas de Crédito</p>
+                                <button onClick={() => setTdcModo(tdcModo === 'periodo' ? 'acumulado' : 'periodo')} className="flex items-center gap-0 bg-zinc-900 border border-zinc-800 rounded-full p-0.5 transition-colors hover:border-zinc-700">
+                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all ${tdcModo === 'periodo' ? 'bg-[#5dbd8c] text-black' : 'text-zinc-500'}`}>Período</span>
+                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all ${tdcModo === 'acumulado' ? 'bg-[#5dbd8c] text-black' : 'text-zinc-500'}`}>Acum.</span>
+                                </button>
+                            </div>
+                            {tdcDisplay.length === 0 ? (
                                 <div className="flex items-center justify-center h-48 text-zinc-600 text-xs">Sin tarjetas de crédito</div>
                             ) : (
-                                <div className="space-y-2">
-                                    {tdcData.map((tdc, idx) => {
+                                <div className="space-y-3">
+                                    {tdcDisplay.map((tdc, idx) => {
                                         const isExpanded = tdcExpanded === idx;
-                                        const barColor = tdc.pctUso > 80 ? '#f43f5e' : tdc.pctUso > 50 ? '#f59e0b' : '#5dbd8c';
+                                        const pctPagado = tdc.limite > 0 ? (tdc.pagos / tdc.limite) * 100 : 0;
+                                        const pctDebe = tdc.limite > 0 ? (tdc.saldoPendiente / tdc.limite) * 100 : 0;
                                         const diaHoy = new Date().getDate();
-                                        const diasEnCiclo = Math.round(tdc.cicloPct * 0.3);
                                         return (
                                             <div key={tdc.nombre} className="border border-zinc-800 rounded-lg p-3 hover:border-zinc-700 transition-colors cursor-pointer" onClick={() => setTdcExpanded(isExpanded ? null : idx)}>
-                                                {/* Header */}
                                                 <div className="flex justify-between items-center mb-2">
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="text-xs font-bold text-zinc-200">{tdc.nombre}</span>
-                                                        <span className="text-[8px] text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded uppercase">{tdc.propietario}</span>
-                                                    </div>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-mono font-bold" style={{color:barColor}}>{formatoMoneda(tdc.saldoPendiente)}</span>
+                                                        <span className="text-[10px] font-bold text-zinc-200">{tdc.nombre}</span>
+                                                        <span className="text-[7px] text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded uppercase">{tdc.propietario}</span>
+                                                        <button onClick={e => { e.stopPropagation(); onAdd && onAdd({ tipoOperacion: 'Transferencia', cuentaDestino: tdc.nombre, compra: 'Pago ' + tdc.nombre }); }} title="Pagar esta tarjeta" className="text-zinc-600 hover:text-[#5dbd8c] transition-colors ml-1">
+                                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[10px] font-mono font-bold text-rose-400">{formatoMoneda(tdc.saldoPendiente)}</span>
                                                         <span className="text-[9px] text-zinc-600">{isExpanded ? '▼' : '▶'}</span>
                                                     </div>
                                                 </div>
                                                 
-                                                {/* Usage bar */}
-                                                <div className="h-2.5 rounded-full overflow-hidden border border-zinc-800 mb-1" style={{background:"#111"}}>
-                                                    <div className="h-full rounded-full transition-all duration-500" style={{width:`${Math.min(tdc.pctUso, 100)}%`, background: `linear-gradient(90deg, ${barColor}dd, ${barColor}66)`}}></div>
-                                                </div>
-                                                
-                                                <div className="flex justify-between text-[7px] text-zinc-500">
-                                                    <span>{tdc.pctUso.toFixed(0)}% de {formatoMoneda(tdc.limite)}</span>
-                                                    <span>Disp: {formatoMoneda(tdc.disponible)}</span>
-                                                </div>
-
-                                                {/* Ciclo: barra de progreso con labels cliqueables */}
-                                                <div className="relative h-2 rounded-full overflow-hidden mt-2 mb-1" style={{background:"#111"}}>
-                                                    <div className="absolute left-0 top-0 h-full bg-[#3b82f6]/25 rounded-full" style={{width:`${tdc.cicloPct}%`}}></div>
-                                                </div>
-                                                <div className="flex justify-between text-[8px]">
-                                                    <span className="text-zinc-500 cursor-pointer hover:text-white transition-colors relative" onClick={e => { e.stopPropagation(); setTtCorte(ttCorte === tdc.nombre ? null : tdc.nombre); }}>
-                                                        <svg className="w-3 h-3 inline-block mr-0.5 mb-px" viewBox="0 0 24 24" fill="none" stroke="#5DBD8C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Corte: día <span className="text-white font-bold">{tdc.corte}</span>
-                                                        {ttCorte === tdc.nombre && (
-                                                            <span className="absolute bottom-full left-0 mb-1 w-44 bg-zinc-800 text-zinc-300 text-[7px] rounded p-2 border border-zinc-700 shadow-lg z-20 fade-in leading-relaxed">
-                                                                Día en que el banco cierra tu estado de cuenta del mes. Los gastos después de esta fecha van al siguiente corte.
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                    <span className="text-zinc-500 cursor-pointer hover:text-white transition-colors relative text-right" onClick={e => { e.stopPropagation(); setTtVence(ttVence === tdc.nombre ? null : tdc.nombre); }}>
-                                                        Vence: día <span className="text-white font-bold">{tdc.vencimiento}</span>
-                                                        {ttVence === tdc.nombre && (
-                                                            <span className="absolute bottom-full right-0 mb-1 w-44 bg-zinc-800 text-zinc-300 text-[7px] rounded p-2 border border-zinc-700 shadow-lg z-20 fade-in leading-relaxed text-left">
-                                                                Fecha límite para pagar sin generar intereses. Paga antes de este día para no tener recargos.
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <div className="text-right text-[7px] text-[#3b82f6]/70 mt-0.5">Día {diaHoy} del ciclo</div>
-
-                                                {/* Expanded detail */}
-                                                {isExpanded && (
-                                                    <div className="mt-3 pt-3 border-t border-zinc-800 space-y-2 fade-in" onClick={e => e.stopPropagation()}>
-                                                        <div className="grid grid-cols-2 gap-2 text-[9px]">
-                                                            <div className="bg-zinc-900/50 rounded p-2">
-                                                                <span className="text-zinc-500 block">Balance Anterior</span>
-                                                                <span className="text-white font-bold font-mono">{formatoMoneda(tdc.saldoAnterior)}</span>
-                                                            </div>
-                                                            <div className="bg-zinc-900/50 rounded p-2">
-                                                                <span className="text-zinc-500 block">Límite de Crédito</span>
-                                                                <span className="text-[#5dbd8c] font-bold font-mono">{formatoMoneda(tdc.limite)}</span>
-                                                            </div>
-                                                            <div className="bg-zinc-900/50 rounded p-2">
-                                                                <span className="text-zinc-500 block">Compras / Adelantos</span>
-                                                                <span className="text-rose-400 font-bold font-mono">{formatoMoneda(tdc.compras)}</span>
-                                                            </div>
-                                                            <div className="bg-zinc-900/50 rounded p-2">
-                                                                <span className="text-zinc-500 block">Pagos / Créditos</span>
-                                                                <span className="text-[#22c55e] font-bold font-mono">{formatoMoneda(tdc.pagos)}</span>
-                                                            </div>
-                                                            <div className="bg-zinc-900/50 rounded p-2">
-                                                                <span className="text-zinc-500 block">Saldo Pendiente</span>
-                                                                <span className="text-white font-bold font-mono">{formatoMoneda(tdc.saldoPendiente)}</span>
-                                                            </div>
-                                                            <div className="bg-zinc-900/50 rounded p-2">
-                                                                <span className="text-zinc-500 block">Disponible</span>
-                                                                <span className="text-[#5dbd8c] font-bold font-mono">{formatoMoneda(tdc.disponible)}</span>
-                                                            </div>
-                                                        </div>
-                                                        <p className="text-[7px] text-zinc-600 text-center">Edita límite, corte y vencimiento en la pestaña <span className="text-[#5dbd8c]">Cuentas</span></p>
+                                                <div className="relative h-3 rounded-full overflow-hidden border border-zinc-800 mb-1 bar-track">
+                                                    {tdc.limite > 0 && (<>
+                                                        <div className="absolute left-0 top-0 h-full bg-[#5dbd8c] rounded-l-full transition-all duration-500" style={{width:`${Math.min(pctPagado, 100)}%`, zIndex:2}}></div>
+                                                        <div className="absolute top-0 h-full bg-[#1a3a28] transition-all duration-500" style={{left:`${Math.min(pctPagado, 100)}%`, width:`${Math.min(pctDebe, 100-pctPagado)}%`, zIndex:1}}></div>
+                                                    </>)}
+                                                    <div className="absolute top-0 h-full w-0.5 bg-white/80 z-10" style={{left:`${tdc.cicloPct}%`}}>
+                                                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-[7px] text-zinc-500 cursor-pointer hover:text-white transition-colors" onClick={e => { e.stopPropagation(); setTtCorte(ttCorte === 'ciclo_'+tdc.nombre ? null : 'ciclo_'+tdc.nombre); }}>●</div>
+                                                        {ttCorte === 'ciclo_'+tdc.nombre && (<span className="absolute -top-16 left-1/2 -translate-x-1/2 w-36 bg-zinc-800 text-zinc-300 text-[7px] rounded p-2 border border-zinc-700 shadow-lg z-20 fade-in text-center">Día {diaHoy} del ciclo · {Math.round(tdc.cicloPct)}% transcurrido</span>)}
                                                     </div>
-                                                )}
+                                                </div>
+                                                <div className="flex justify-between text-[7px] text-zinc-500">
+                                                    <span className="flex items-center gap-1">
+                                                        <svg className="w-3 h-3 inline" viewBox="0 0 24 24" fill="none" stroke="#5DBD8C" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                                        <span className="cursor-pointer hover:text-white transition-colors relative" onClick={e => { e.stopPropagation(); setTtCorte(ttCorte === tdc.nombre ? null : tdc.nombre); }}>Corte {tdc.corte}
+                                                            {ttCorte === tdc.nombre && (<span className="absolute bottom-full left-0 mb-1 w-40 bg-zinc-800 text-zinc-300 text-[7px] rounded p-2 border border-zinc-700 shadow-lg z-20 fade-in">Día en que el banco cierra tu estado de cuenta.</span>)}
+                                                        </span>
+                                                    </span>
+                                                    <span className="text-[#3b82f6]/70">{tdc.diasHastaVence > 0 ? `Faltan ${tdc.diasHastaVence} d` : 'Hoy vence'}</span>
+                                                    <span className="flex items-center gap-1 text-right">
+                                                        <span className="cursor-pointer hover:text-white transition-colors relative" onClick={e => { e.stopPropagation(); setTtVence(ttVence === tdc.nombre ? null : tdc.nombre); }}>Vence {tdc.vencimiento}
+                                                            {ttVence === tdc.nombre && (<span className="absolute bottom-full right-0 mb-1 w-40 bg-zinc-800 text-zinc-300 text-[7px] rounded p-2 border border-zinc-700 shadow-lg z-20 fade-in">Fecha límite para pagar sin generar intereses.</span>)}
+                                                        </span>
+                                                        <svg className="w-3 h-3 inline" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                                    </span>
+                                                </div>
+
+                                                {isExpanded && (<div className="mt-3 pt-3 border-t border-zinc-800 space-y-2 fade-in" onClick={e => e.stopPropagation()}><div className="grid grid-cols-2 gap-2 text-[9px]"><div className="bg-zinc-900/50 rounded p-2"><span className="text-zinc-500 block">Pagado</span><span className="text-[#5dbd8c] font-bold font-mono">{formatoMoneda(tdc.pagos)}</span></div><div className="bg-zinc-900/50 rounded p-2"><span className="text-zinc-500 block">Debes</span><span className="text-rose-400 font-bold font-mono">{formatoMoneda(tdc.saldoPendiente)}</span></div><div className="bg-zinc-900/50 rounded p-2"><span className="text-zinc-500 block">Límite</span><span className="text-zinc-400 font-bold font-mono">{formatoMoneda(tdc.limite)}</span></div><div className="bg-zinc-900/50 rounded p-2"><span className="text-zinc-500 block">Disponible</span><span className="text-[#5dbd8c] font-bold font-mono">{formatoMoneda(tdc.disponible)}</span></div></div><p className="text-[7px] text-zinc-600 text-center">Edita en <span className="text-[#5dbd8c]">Cuentas</span></p></div>)}
                                             </div>
                                         );
                                     })}
@@ -1629,31 +1842,7 @@
                         })()}
                     </div>
 
-                    {/* ── Card 6: Recent Transactions ── */}
-                    <div className="glass-card p-5">
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3 font-bold">Últimos Movimientos</p>
-                        {recentLogs.length === 0 ? (
-                            <p className="text-zinc-600 text-xs text-center py-4">Sin movimientos</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {recentLogs.map((log,i) => {
-                                    const color = log.Tipo_Operacion === 'Ingreso' ? 'text-[#5dbd8c]' : 'text-rose-400';
-                                    return (
-                                        <div key={i} className="flex justify-between items-center p-2 rounded hover:bg-zinc-900/50 text-[10px] border-b border-zinc-900 last:border-0">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <span className="text-[9px] text-zinc-600 font-mono w-16 flex-shrink-0">{log.Fecha_Compra}</span>
-                                                <span className="text-zinc-300 truncate max-w-[140px]">{log.Compra}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3 flex-shrink-0">
-                                                <span className="text-[9px] text-zinc-500">{log.Categoria}</span>
-                                                <span className={`font-mono font-bold ${color}`}>{formatoMoneda(log.Monto_Parcial)}</span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
+
                 </div>
             );
         });
@@ -2607,7 +2796,7 @@
                                     </button>
                                 </div>
                             </div>
-                        ) : view === 'recordatorios' ? <RecordatoriosTab logs={reminderLogs} onEdit={triggerEdit} loadData={loadData} /> : view === 'cuentas' ? <CuentasManager cuentas={appData.cuentas} logs={realLogs} loadData={loadData} /> : view === 'plan' ? <BudgetEditor appData={appData} setAppData={setAppData} loadData={loadData} /> : view === 'calendar' ? <CalendarView logs={[...realLogs, ...reminderLogs]} cuentas={appData.cuentas} /> : view === 'labels' ? <LabelsView logs={appData.rawLogs} loadData={loadData} /> : view === 'trash' ? <TrashView loadData={loadData} /> : view === 'panel' ? <PanelView rawLogs={realLogs} presupuesto={appData.presupuesto} cuentas={appData.cuentas} onAdd={() => { setShowRegistroForm(true); setForm(prev => ({...prev, id_edit: null, compra: '', monto: '', _showCalc: false, msi: '1', esRecordatorio: false})); }} /> : <Dashboard rawLogs={realLogs} presupuesto={appData.presupuesto} cuentas={appData.cuentas} onEdit={triggerEdit} />
+                        ) : view === 'recordatorios' ? <RecordatoriosTab logs={reminderLogs} onEdit={triggerEdit} loadData={loadData} /> : view === 'cuentas' ? <CuentasManager cuentas={appData.cuentas} logs={realLogs} loadData={loadData} /> : view === 'plan' ? <BudgetEditor appData={appData} setAppData={setAppData} loadData={loadData} /> : view === 'calendar' ? <CalendarView logs={[...realLogs, ...reminderLogs]} cuentas={appData.cuentas} /> : view === 'labels' ? <LabelsView logs={appData.rawLogs} loadData={loadData} /> : view === 'trash' ? <TrashView loadData={loadData} /> : view === 'panel' ? <PanelView rawLogs={realLogs} presupuesto={appData.presupuesto} cuentas={appData.cuentas} onAdd={(cfg) => { setShowRegistroForm(true); if (cfg && cfg.tipoOperacion) { setForm(prev => ({...prev, id_edit: null, _showCalc: false, msi: '1', esRecordatorio: false, tipoOperacion: cfg.tipoOperacion, cuentaDestino: cfg.cuentaDestino || '', cuentaOrigen: '', compra: cfg.compra || '', monto: '', tipoGasto: 'Personal (100/0)'})); } else { setForm(prev => ({...prev, id_edit: null, compra: '', monto: '', _showCalc: false, msi: '1', esRecordatorio: false})); } }} /> : <Dashboard rawLogs={realLogs} presupuesto={appData.presupuesto} cuentas={appData.cuentas} onEdit={triggerEdit} />
                     )}
 
                     {/* ── FAB: Floating Action Button ── */}
