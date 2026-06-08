@@ -388,7 +388,6 @@
         const Dashboard = React.memo(({ rawLogs, presupuesto, cuentas, onEdit }) => {
             const [viewScope, setViewScope] = useState('Compartido');
             const [deletingLog, setDeletingLog] = useState(null);
-            const [tablaFiltroTipo, setTablaFiltroTipo] = useState('Gasto');
             const [busqueda, setBusqueda] = useState('');
             const busquedaDebounced = useDebounce(busqueda, 250);
             const [filtroCategorias, setFiltroCategorias] = useState([]);
@@ -413,29 +412,36 @@
             const availableTipos = useMemo(() => [...new Set(logsGrafico.map(l => l.Tipo_Gasto))], [logsGrafico]);
             const logsGraficoFiltrado = useMemo(() => logsGrafico.filter(l => !hiddenTipos.includes(l.Tipo_Gasto)), [logsGrafico, hiddenTipos]);
 
-            const tablaLogs = useMemo(() => {
-                let mapeados = logsGlobal.filter(l => {
-                    if (tablaFiltroTipo !== 'Todos' && l.Tipo_Operacion !== tablaFiltroTipo) return false;
+            const auditoriaRows = useMemo(() => {
+                let rows = [];
+                logsGlobal.forEach(l => {
                     if (l.Tipo_Operacion !== 'Transferencia') {
-                        if (viewScope === 'Compartido' && l.Tipo_Gasto && l.Tipo_Gasto.includes('Personal')) return false;
-                        if (viewScope === 'Josue' && !(Number(l.Participacion_Josue) > 0)) return false;
-                        if (viewScope === 'Abi' && !(Number(l.Participacion_Abi) > 0)) return false;
+                        if (viewScope === 'Compartido' && l.Tipo_Gasto && l.Tipo_Gasto.includes('Personal')) return;
+                        if (viewScope === 'Josue' && !(Number(l.Participacion_Josue) > 0)) return;
+                        if (viewScope === 'Abi' && !(Number(l.Participacion_Abi) > 0)) return;
                     }
-                    if (filtroCategorias.length > 0 && !filtroCategorias.includes(l.Categoria)) return false;
-                    return true;
+                    if (filtroCategorias.length > 0 && !filtroCategorias.includes(l.Categoria)) return;
+                    if (busquedaDebounced.trim() !== '') {
+                        const q = busquedaDebounced.toLowerCase();
+                        if (!((l.Compra && l.Compra.toLowerCase().includes(q)) || (l.Categoria && l.Categoria.toLowerCase().includes(q)) ||
+                            (l.MacroCategoria && l.MacroCategoria.toLowerCase().includes(q)) || (l.Cuenta_Origen && l.Cuenta_Origen.toLowerCase().includes(q)) ||
+                            (l.Cuenta_Destino && l.Cuenta_Destino.toLowerCase().includes(q)) || (l.Fecha_Compra && l.Fecha_Compra.includes(q)) ||
+                            (l.Monto_Total && String(l.Monto_Total).includes(q)))) return;
+                    }
+                    const mParcial = Number(l.Monto_Parcial) || 0;
+                    const mTotal = Number(l.Monto_Total) || 0;
+                    if (l.Tipo_Operacion === 'Transferencia') {
+                        rows.push({ ...l, _key: l.ID_Unico+'_out', _cuenta: l.Cuenta_Origen, _amount: -mParcial, _color: 'text-indigo-400', _parcial: mParcial, _total: mTotal });
+                        rows.push({ ...l, _key: l.ID_Unico+'_in', _cuenta: l.Cuenta_Destino, _amount: mParcial, _color: 'text-[#5dbd8c]', _parcial: mParcial, _total: mTotal });
+                    } else {
+                        const aporte = viewScope === 'Compartido' ? mParcial : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi));
+                        const isGasto = l.Tipo_Operacion === 'Gasto';
+                        rows.push({ ...l, _key: l.ID_Unico, _cuenta: l.Cuenta_Origen, _amount: isGasto ? -aporte : aporte, _color: isGasto ? 'text-rose-400' : 'text-[#5dbd8c]', _parcial: aporte, _total: mTotal });
+                    }
                 });
-
-                if (busquedaDebounced.trim() !== '') {
-                    const q = busquedaDebounced.toLowerCase();
-                    mapeados = mapeados.filter(l => 
-                        (l.Compra && l.Compra.toLowerCase().includes(q)) || (l.Categoria && l.Categoria.toLowerCase().includes(q)) ||
-                        (l.MacroCategoria && l.MacroCategoria.toLowerCase().includes(q)) || (l.Cuenta_Origen && l.Cuenta_Origen.toLowerCase().includes(q)) ||
-                        (l.Cuenta_Destino && l.Cuenta_Destino.toLowerCase().includes(q)) || (l.Fecha_Compra && l.Fecha_Compra.includes(q)) ||
-                        (l.Monto_Total && String(l.Monto_Total).includes(q))
-                    );
-                }
-                return mapeados;
-            }, [logsGlobal, tablaFiltroTipo, viewScope, busquedaDebounced, filtroCategorias]);
+                rows.sort((a, b) => { const ta = a._sortTS || 0, tb = b._sortTS || 0; if (ta !== tb) return tb - ta; return (a._regTS || 0) - (b._regTS || 0); });
+                return rows;
+            }, [logsGlobal, viewScope, filtroCategorias, busquedaDebounced]);
 
             const totalGastoView = logsGraficoFiltrado.reduce((acc, l) => acc + (viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi))), 0);
 
@@ -472,43 +478,10 @@
                 });
             }, [categoriasData, totalGastoView]);
 
-            const [sortConfig, setSortConfig] = useState({ key: 'Fecha_Compra', direction: 'desc' });
+            const sortedLogs = useMemo(() => auditoriaRows, [auditoriaRows]);
             const [pageSize, setPageSize] = useState(20);
             const [currentPage, setCurrentPage] = useState(1);
-
-            useEffect(() => { setCurrentPage(1); }, [tablaLogs.length, sortConfig, pageSize]);
-            
-            const requestSort = (key) => {
-                let direction = 'asc';
-                if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
-                setSortConfig({ key, direction });
-            };
-
-            const sortedLogs = useMemo(() => {
-                let sortableItems = [...tablaLogs];
-                sortableItems.sort((a, b) => {
-                    let valA, valB;
-                    if (sortConfig.key === 'Fecha_Compra') {
-                        valA = a._sortTS || 0; valB = b._sortTS || 0;
-                        if (valA === valB) {
-                            const ta = a._regTS || 0, tb = b._regTS || 0;
-                            if (ta !== tb) return sortConfig.direction === 'asc' ? ta - tb : tb - ta;
-                        }
-                    } else if (sortConfig.key === 'Aporte') {
-                        valA = viewScope === 'Compartido' ? Number(a.Monto_Parcial) : (viewScope === 'Josue' ? Number(a.Participacion_Josue) : Number(a.Participacion_Abi));
-                        valB = viewScope === 'Compartido' ? Number(b.Monto_Parcial) : (viewScope === 'Josue' ? Number(b.Participacion_Josue) : Number(b.Participacion_Abi));
-                    } else if (sortConfig.key === 'Monto_Total') {
-                        valA = Number(a.Monto_Total) || 0; valB = Number(b.Monto_Total) || 0;
-                    } else {
-                        valA = String(a[sortConfig.key] || '').toLowerCase();
-                        valB = String(b[sortConfig.key] || '').toLowerCase();
-                    }
-                    if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-                    if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-                    return 0;
-                });
-                return sortableItems;
-            }, [tablaLogs, sortConfig, viewScope]);
+            useEffect(() => { setCurrentPage(1); }, [auditoriaRows.length, pageSize]);
 
             return (
                 <div className="space-y-6 fade-in">
@@ -574,7 +547,6 @@
                                                         onClick={() => {
                                                             setFiltroCategorias(prev => prev.includes(seg.nombre) ? prev.filter(c => c !== seg.nombre) : [...prev, seg.nombre]);
                                                             setPieSelected(pieSelected === i ? null : i);
-                                                            if (tablaFiltroTipo !== 'Gasto' && tablaFiltroTipo !== 'Todos') setTablaFiltroTipo('Gasto');
                                                         }}
                                                         onMouseEnter={() => setPieSelected(pieSelected === i ? null : i)}
                                                         onMouseLeave={() => setPieSelected(prev => prev === i ? null : prev)}
@@ -616,7 +588,7 @@
                                     const catDimmed = filtroCategorias.length > 0 && !filtroCategorias.includes(cat);
                                     return (
                                         <div key={cat} 
-                                            onClick={() => { setFiltroCategorias(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]); if (tablaFiltroTipo !== 'Gasto' && tablaFiltroTipo !== 'Todos') setTablaFiltroTipo('Gasto'); }}
+                                            onClick={() => { setFiltroCategorias(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]); }}
                                             className="flex justify-between items-center text-[10px] px-2 py-1 rounded hover:bg-zinc-900/50 cursor-pointer transition-colors"
                                             style={{opacity: catDimmed ? 0.35 : 1, transition:'opacity 0.25s ease'}}
                                         >
@@ -632,14 +604,7 @@
                     <div className="glass-card overflow-hidden">
                         <div className="p-4 border-b border-zinc-800 bg-zinc-900/30 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-3 w-full md:w-auto">
-                                <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Auditoría:</span>
-                                <select className="p-2 text-xs rounded bg-black outline-none border border-zinc-800 text-[#5dbd8c] font-bold w-full md:w-auto" value={tablaFiltroTipo} onChange={e=>setTablaFiltroTipo(e.target.value)}>
-                                    <option value="Gasto">Solo Gastos</option>
-                                    <option value="Ingreso">Solo Ingresos</option>
-                                    <option value="Transferencia">Solo Transferencias</option>
-                                    <option value="Todos">Ver Todos</option>
-                                </select>
-                                
+                                <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Auditoría</span>
                                 {filtroCategorias.length > 0 && (
                                     <button onClick={() => setFiltroCategorias([])} className="flex items-center gap-1 bg-[#3d8068]/20 text-[#3d8068] px-2 py-1.5 rounded text-[10px] font-bold border border-[#3d8068]/30 hover:bg-rose-500/20 hover:text-rose-500 hover:border-rose-500/30 transition-colors">
                                         <span>{filtroCategorias.length} cat</span><span><IconClose /></span>
@@ -647,59 +612,61 @@
                                 )}
                             </div>
                             <div className="w-full md:w-72">
-                                <input className="w-full p-2 text-xs rounded bg-black border border-zinc-800 outline-none text-zinc-300" placeholder="Buscar (#tags, concepto, monto...)" value={busqueda} onChange={e=>setBusqueda(e.target.value)} />
+                                <input className="w-full p-2 text-xs rounded bg-black border border-zinc-800 outline-none text-zinc-300" placeholder="Buscar concepto, cuenta, monto..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} />
                             </div>
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-[11px] whitespace-nowrap">
-                                <thead className="bg-zinc-900 text-zinc-400 uppercase font-bold select-none">
-                                    <tr>
-                                        <th className="p-3 cursor-pointer hover:text-white" onClick={() => requestSort('Fecha_Compra')}>Fecha {sortConfig.key==='Fecha_Compra'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
-                                        <th className="p-3 cursor-pointer hover:text-white" onClick={() => requestSort('Compra')}>Concepto {sortConfig.key==='Compra'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
-                                        <th className="p-3 text-[#5dbd8c] cursor-pointer hover:text-white" onClick={() => requestSort('Categoria')}>Categoría {sortConfig.key==='Categoria'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
-                                        <th className="p-3 cursor-pointer hover:text-white" onClick={() => requestSort('Cuenta_Origen')}>Cuenta (Flujo) {sortConfig.key==='Cuenta_Origen'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
-                                        <th className="p-3 cursor-pointer hover:text-white" onClick={() => requestSort('Monto_Total')}>Ticket Total {sortConfig.key==='Monto_Total'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
-                                        <th className="p-3 cursor-pointer hover:text-white text-right" onClick={() => requestSort('Aporte')}>Aporte/Parcial {sortConfig.key==='Aporte'?(sortConfig.direction==='asc'?'▲':'▼'):''}</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-zinc-900">
-                                    {(() => { const start = (currentPage - 1) * pageSize; const page = sortedLogs.slice(start, start + pageSize); return page.map((log, idx) => {
-                                        let aporte = Number(log.Monto_Parcial) || 0;
-                                        if (log.Tipo_Operacion === 'Gasto') { aporte = viewScope === 'Compartido' ? Number(log.Monto_Parcial) : (viewScope === 'Josue' ? Number(log.Participacion_Josue) : Number(log.Participacion_Abi)); }
-
-                                        const colorFila = log.Tipo_Operacion === 'Ingreso' ? 'text-[#5dbd8c]' : (log.Tipo_Operacion === 'Transferencia' ? 'text-indigo-400' : 'text-zinc-200');
-
+                            {sortedLogs.length === 0 ? (
+                                <div className="p-8 text-center text-zinc-600 font-mono text-xs">No se encontraron registros.</div>
+                            ) : (
+                                <div className="divide-y divide-zinc-900/80">
+                                    {(() => { const start = (currentPage - 1) * pageSize; const page = sortedLogs.slice(start, start + pageSize); return page.map((row, idx) => {
+                                        const isTransfer = row.Tipo_Operacion === 'Transferencia';
                                         return (
-                                            <tr key={idx} tabIndex="0" className="hover:bg-zinc-900/50 group focus-within:bg-zinc-900/50 transition-colors relative">
-                                                <td className="p-3 text-zinc-500 font-mono">{log.Fecha_Compra}</td>
-                                                <td className={`p-3 font-bold ${colorFila}`}>
+                                            <div key={row._key} tabIndex="0" className="flex items-center py-2.5 px-3 hover:bg-zinc-900/50 group transition-colors relative cursor-default">
+                                                {/* Left: Account + Date */}
+                                                <div className="w-24 md:w-28 flex-shrink-0 flex flex-col">
+                                                    <span className="text-[10px] text-zinc-400 truncate font-medium">{row._cuenta}</span>
+                                                    <span className="text-[8px] text-zinc-600 font-mono">{row.Fecha_Compra}</span>
+                                                </div>
+                                                
+                                                {/* Middle: Concept + Category/Subcategory */}
+                                                <div className="flex-1 min-w-0 px-2 md:px-3">
                                                     <div className="flex items-center gap-2">
-                                                        <span>{log.Compra}</span>
-                                                        <span className="text-[8px] border border-zinc-700 px-1 rounded text-zinc-500 uppercase">{log.Tipo_Operacion}</span>
-                                                        <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-2 ml-2">
-                                                            <button onClick={() => onEdit(log)} className="text-zinc-500 hover:text-[#5dbd8c]"><IconEdit /></button>
-                                                            {deletingLog === log.ID_Unico ? (
-                                                                <div className="flex gap-1 bg-black p-1 rounded border border-rose-500/50">
-                                                                    <button onClick={() => { setDeletingLog(null); const trash = JSON.parse(localStorage.getItem('fl_trash')||'[]'); trash.unshift(log); localStorage.setItem('fl_trash',JSON.stringify(trash)); apiCall('eliminarGasto', log.ID_Unico).then(()=>document.getElementById('refreshBtn').click()); }} className="text-rose-500 px-2 font-bold text-[9px] hover:bg-rose-500/20 rounded">Eliminar</button>
-                                                                    <button onClick={() => setDeletingLog(null)} className="text-zinc-500 px-1 text-[9px] hover:bg-zinc-800 rounded">Cancelar</button>
-                                                                </div>
-                                                            ) : (
-                                                                <button onClick={() => setDeletingLog(log.ID_Unico)} className="text-zinc-500 hover:text-rose-500"><IconDelete /></button>
-                                                            )}
-                                                        </div>
+                                                        <span className="text-[11px] text-zinc-200 truncate font-medium">{row.Compra}</span>
+                                                        {isTransfer && <span className="text-[8px] border border-indigo-500/30 px-1.5 py-0.5 rounded text-indigo-400 uppercase flex-shrink-0">Transf</span>}
                                                     </div>
-                                                </td>
-                                                <td className="p-3 text-zinc-400"><span className="text-[9px] text-zinc-600 block">{log.MacroCategoria}</span>{log.Categoria}</td>
-                                                <td className="p-3 text-zinc-500">{log.Cuenta_Origen}{log.Tipo_Operacion === 'Transferencia' && <> <IconArrowRight /> {log.Cuenta_Destino}</>}</td>
-                                                <td className="p-3 font-mono text-zinc-500">{formatoMoneda(log.Monto_Total)}</td>
-                                                <td className="p-3 font-mono text-[#5dbd8c] text-right">{formatoMoneda(aporte)}</td>
-                                            </tr>
+                                                    <div className="text-[9px] text-zinc-500 truncate">{row.MacroCategoria}{row.MacroCategoria && row.Categoria ? ' › ' : ''}{row.Categoria}</div>
+                                                </div>
+                                                
+                                                {/* Right: Amount + Parcial */}
+                                                <div className="text-right flex-shrink-0 ml-2">
+                                                    <div className={`text-[12px] font-mono font-bold ${row._color}`}>
+                                                        {row._amount < 0 ? '-' : ''}{formatoMoneda(Math.abs(row._amount))}
+                                                    </div>
+                                                    <div className="text-[9px] text-zinc-500 font-mono">
+                                                        {row._total !== row._parcial ? `Ticket ${formatoMoneda(row._total)}` : formatoMoneda(row._parcial)}
+                                                    </div>
+                                                </div>
+
+                                                {/* Hover actions */}
+                                                <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1.5 ml-2 flex-shrink-0">
+                                                    <button onClick={() => onEdit(row)} className="text-zinc-500 hover:text-[#5dbd8c] p-1" title="Editar"><IconEdit /></button>
+                                                    {deletingLog === row.ID_Unico ? (
+                                                        <div className="flex gap-1 bg-black p-1 rounded border border-rose-500/50">
+                                                            <button onClick={() => { setDeletingLog(null); const trash = JSON.parse(localStorage.getItem('fl_trash')||'[]'); trash.unshift(row); localStorage.setItem('fl_trash',JSON.stringify(trash)); apiCall('eliminarGasto', row.ID_Unico).then(()=>document.getElementById('refreshBtn').click()); }} className="text-rose-500 px-2 font-bold text-[9px] hover:bg-rose-500/20 rounded">Eliminar</button>
+                                                            <button onClick={() => setDeletingLog(null)} className="text-zinc-500 px-1 text-[9px] hover:bg-zinc-800 rounded">Cancelar</button>
+                                                        </div>
+                                                    ) : (
+                                                        <button onClick={() => setDeletingLog(row.ID_Unico)} className="text-zinc-500 hover:text-rose-500 p-1" title="Eliminar"><IconDelete /></button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         );
                                     }) })()}
-                                    {sortedLogs.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-zinc-600 font-mono">No se encontraron registros.</td></tr>}
-                                </tbody>
-                            </table>
+                                </div>
+                            )}
                         </div>
                         {sortedLogs.length > 0 && (
                             <div className="p-3 border-t border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-3">
