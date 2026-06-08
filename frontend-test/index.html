@@ -393,7 +393,6 @@
             const busquedaDebounced = useDebounce(busqueda, 250);
             const [filtroCategorias, setFiltroCategorias] = useState([]);
 
-            const mapCuentas = useMemo(() => { let map = {}; cuentas.forEach(c => map[c.nombre] = c.propietario); return map; }, [cuentas]);
             const periodos = useMemo(() => [...new Set(rawLogs.map(l => l.Periodo_Pago))].filter(Boolean).sort((a, b) => { try { const pA = String(a).split('/'); const pB = String(b).split('/'); return new Date(pB[2], pB[1]-1, pB[0]) - new Date(pA[2], pA[1]-1, pA[0]); } catch(e) { return 0; } }), [rawLogs]);
             const getPeriodoActual = () => { const hoy = new Date(); let m = hoy.getMonth(), a = hoy.getFullYear(); if (hoy.getDate() > 19) m += 1; const u = new Date(a, m + 1, 0); return `${String(u.getDate()).padStart(2, '0')}/${String(u.getMonth() + 1).padStart(2, '0')}/${u.getFullYear()}`; };
             const [periodoActivo, setPeriodoActivo] = useState(periodos.includes(getPeriodoActual()) ? getPeriodoActual() : (periodos[0] || getPeriodoActual()));
@@ -438,22 +437,6 @@
                 return mapeados;
             }, [logsGlobal, tablaFiltroTipo, viewScope, busquedaDebounced, filtroCategorias]);
 
-            const deudaAbi = logsGlobal.reduce((acc, curr) => {
-                const monto = Number(curr.Monto_Parcial) || 0;
-                if (curr.Tipo_Operacion === 'Transferencia') {
-                    if (mapCuentas[curr.Cuenta_Origen] === 'Abi' && mapCuentas[curr.Cuenta_Destino] === 'Josué') return acc - monto;
-                    if (mapCuentas[curr.Cuenta_Origen] === 'Josué' && mapCuentas[curr.Cuenta_Destino] === 'Abi') return acc + monto;
-                    return acc;
-                }
-                if (curr.Tipo_Operacion === 'Gasto') {
-                    const pJ = Number(curr.Participacion_Josue) || 0, pA = Number(curr.Participacion_Abi) || 0;
-                    const prop = mapCuentas[curr.Cuenta_Origen];
-                    if (prop === 'Josué') return acc + pA;
-                    if (prop === 'Abi') return acc - pJ;
-                }
-                return acc;
-            }, 0);
-
             const totalGastoView = logsGraficoFiltrado.reduce((acc, l) => acc + (viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi))), 0);
 
             const categoriasData = useMemo(() => {
@@ -471,51 +454,6 @@
                 Object.keys(currentPresupuesto).forEach(catName => { if (currentPresupuesto[catName] > 0 && !cats.find(c => c.nombre === catName)) cats.push({ nombre: catName, total: 0 }); });
                 return cats;
             }, [categoriasData, currentPresupuesto]);
-
-            // ── Tendencia Patrimonio (Activos, Pasivos, Neto) ──
-            const mesesNombres = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-            const [trendMonths, setTrendMonths] = useState(() => { try { return Number(localStorage.getItem('fl_tm')) || 6; } catch(e) { return 6; } });
-            const [trendExpanded, setTrendExpanded] = useState(false);
-            const [showTrendActivo, setShowTrendActivo] = useState(() => { try { const v = localStorage.getItem('fl_ta'); return v !== null ? v === 'true' : true; } catch(e) { return true; } });
-            const [showTrendPasivo, setShowTrendPasivo] = useState(() => { try { const v = localStorage.getItem('fl_tp'); return v !== null ? v === 'true' : true; } catch(e) { return true; } });
-            const [showTrendPatrimonio, setShowTrendPatrimonio] = useState(() => { try { const v = localStorage.getItem('fl_tn'); return v !== null ? v === 'true' : true; } catch(e) { return true; } });
-            useEffect(() => { try { localStorage.setItem("fl_ta", showTrendActivo); } catch(e) {} }, [showTrendActivo]);
-            useEffect(() => { try { localStorage.setItem("fl_tp", showTrendPasivo); } catch(e) {} }, [showTrendPasivo]);
-            useEffect(() => { try { localStorage.setItem("fl_tn", showTrendPatrimonio); } catch(e) {} }, [showTrendPatrimonio]);
-            useEffect(() => { try { localStorage.setItem("fl_tm", trendMonths); } catch(e) {} }, [trendMonths]);
-            const patrimonioData = useMemo(() => {
-                const [d,m,y] = periodoActivo.split('/');
-                let cur = new Date(y, m-1, d);
-                const periods = [];
-                for (let i = 0; i < trendMonths; i++) {
-                    const label = `${mesesNombres[cur.getMonth()]} ${cur.getFullYear()}`;
-                    const lastDay = new Date(cur.getFullYear(), cur.getMonth()+1, 0);
-                    const periodoKey = `${String(lastDay.getDate()).padStart(2,'0')}/${String(lastDay.getMonth()+1).padStart(2,'0')}/${lastDay.getFullYear()}`;
-                    periods.push({ label, periodoKey, date: new Date(cur) });
-                    cur = new Date(cur.getFullYear(), cur.getMonth(), 0);
-                }
-                periods.reverse();
-                const balances = {};
-                cuentas.forEach(c => { balances[c.nombre] = Number(c.saldoInicial) || 0; });
-                return periods.map(p => {
-                    const logsInPeriod = rawLogs.filter(l => l.Periodo_Pago === p.periodoKey);
-                    logsInPeriod.forEach(l => {
-                        const m = Number(l.Monto_Parcial) || 0;
-                        if (l.Cuenta_Origen && balances[l.Cuenta_Origen] !== undefined) {
-                            if (l.Tipo_Operacion === 'Gasto' || l.Tipo_Operacion === 'Transferencia') balances[l.Cuenta_Origen] -= m;
-                            else if (l.Tipo_Operacion === 'Ingreso') balances[l.Cuenta_Origen] += m;
-                        }
-                        if (l.Cuenta_Destino && l.Tipo_Operacion === 'Transferencia' && balances[l.Cuenta_Destino] !== undefined) balances[l.Cuenta_Destino] += m;
-                    });
-                    let activo = 0, pasivo = 0;
-                    cuentas.forEach(c => {
-                        const bal = balances[c.nombre] || 0;
-                        if (c.tipo.trim() === 'Activo') activo += Math.max(0, bal);
-                        else if (c.tipo.trim() === 'Pasivo') pasivo += Math.max(0, -bal);
-                    });
-                    return { label: p.label, activo, pasivo, patrimonio: activo - pasivo };
-                });
-            }, [rawLogs, periodoActivo, trendMonths, cuentas]);
 
             // ── Pie chart click state ──
             const [pieSelected, setPieSelected] = useState(null);
@@ -591,33 +529,8 @@
                             <div className="border-t border-zinc-800/50 pt-3 flex flex-wrap gap-2 items-center fade-in">
                                 {availableTipos.map(tipo => {
                                     const isActive = !hiddenTipos.includes(tipo);
-                                    return <button key={tipo} onClick={() => { if (isActive) setHiddenTipos([...hiddenTipos, tipo]); else setHiddenTipos(hiddenTipos.filter(t => t !== tipo)); }} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-full transition-all border ${isActive ? 'bg-[#5dbd8c]/10 border-[#5dbd8c]/50 text-[#5dbd8c]' : 'bg-transparent border-zinc-800 text-zinc-600'}`}>{tipo}</button>
+                                    return <button key={tipo} onClick={() => { if (isActive) setHiddenTipos([...hiddenTipos, tipo]); else setHiddenTipos(hiddenTipos.filter(t => t !== tipo)); }} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-full transition-all border ${isActive ? 'bg-[#5dbd8c] text-black border-[#5dbd8c]' : 'bg-transparent border-zinc-800 text-zinc-600'}`}>{tipo}</button>
                                 })}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="glass-card p-6">
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Gasto {viewScope}</p>
-                            <p className="text-3xl font-bold accent-glow mt-1">{formatoMoneda(totalGastoView)}</p>
-                        </div>
-                        {viewScope === 'Compartido' ? (
-                            <div className={`glass-card p-6 border-l-4 ${Math.abs(deudaAbi) < 0.01 ? 'border-[#3d8068]' : 'border-amber-500'}`}>
-                                <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Balance Neto (Hogar)</p>
-                                <p className={`text-2xl font-bold mt-1 text-white`}>{Math.abs(deudaAbi) < 0.01 ? <><IconCheck /> Saldado</> : `${deudaAbi > 0 ? '+' : ''}${formatoMoneda(deudaAbi)}`}</p>
-                            </div>
-                        ) : (
-                            <div className={`glass-card p-6 border-l-4 ${Math.abs(deudaAbi) < 0.01 ? 'border-[#3d8068]' : ((viewScope === 'Josue' && deudaAbi > 0) || (viewScope === 'Abi' && deudaAbi < 0) ? 'border-[#3d8068]' : 'border-rose-500')}`}>
-                                <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Tu Balance</p>
-                                <p className={`text-2xl font-bold mt-1 ${Math.abs(deudaAbi) < 0.01 ? 'text-white' : ((viewScope === 'Josue' && deudaAbi > 0) || (viewScope === 'Abi' && deudaAbi < 0) ? 'text-[#5dbd8c]' : 'text-rose-400')}`}>
-                                    {Math.abs(deudaAbi) < 0.01 ? 'Estás al día' : (
-                                        (viewScope === 'Josue' && deudaAbi > 0) ? `Abi te debe ${formatoMoneda(deudaAbi)}` :
-                                        (viewScope === 'Josue' && deudaAbi < 0) ? `Le debes a Abi ${formatoMoneda(Math.abs(deudaAbi))}` :
-                                        (viewScope === 'Abi' && deudaAbi > 0) ? `Le debes a Josué ${formatoMoneda(deudaAbi)}` :
-                                        `Josué te debe ${formatoMoneda(Math.abs(deudaAbi))}`
-                                    )}
-                                </p>
                             </div>
                         )}
                     </div>
@@ -695,129 +608,25 @@
                             )}
                         </div>
                         <div className="glass-card p-6 overflow-y-auto max-h-80">
-                            <ul className="space-y-3">
+                            <div className="space-y-1">
                                 {categoriasParaRender.map((catObj, i) => {
-                                    const cat = catObj.nombre; const gastado = catObj.total; const meta = currentPresupuesto[cat] || 0;
-                                    if (gastado === 0 && meta === 0) return null; const pct = meta > 0 ? (gastado / meta) * 100 : 0;
+                                    const cat = catObj.nombre; const gastado = catObj.total;
+                                    if (gastado === 0 && !currentPresupuesto[cat]) return null;
                                     const catActive = filtroCategorias.length === 0 || filtroCategorias.includes(cat);
                                     const catDimmed = filtroCategorias.length > 0 && !filtroCategorias.includes(cat);
                                     return (
-                                        <li key={cat} 
+                                        <div key={cat} 
                                             onClick={() => { setFiltroCategorias(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]); if (tablaFiltroTipo !== 'Gasto' && tablaFiltroTipo !== 'Todos') setTablaFiltroTipo('Gasto'); }}
-                                            className="text-xs cursor-pointer hover:bg-zinc-900/50 p-2 -mx-2 rounded transition-colors"
+                                            className="flex justify-between items-center text-[10px] px-2 py-1 rounded hover:bg-zinc-900/50 cursor-pointer transition-colors"
                                             style={{opacity: catDimmed ? 0.35 : 1, transition:'opacity 0.25s ease'}}
                                         >
-                                            <div className="flex justify-between items-center mb-1">
-                                                <div className="flex items-center gap-3"><span className="w-4 h-4 rounded-full" style={{backgroundColor: gastado > 0 ? COLORES_PASTEL[i % COLORES_PASTEL.length] : '#333'}}></span><span className={`font-medium ${catDimmed ? 'text-zinc-600' : 'text-zinc-400'}`}>{cat}</span></div>
-                                                <div className="text-right"><span className={`font-mono ${meta > 0 && pct > 100 ? 'text-rose-500' : 'text-[#5dbd8c]'}`}>{formatoMoneda(gastado)}</span>{meta > 0 && <span className="text-[9px] text-zinc-500"> / {formatoMoneda(meta)}</span>}</div>
-                                            </div>
-                                            {meta > 0 && (
-                                                <div className="flex items-center gap-3 mt-2"><div className="progress-bar flex-grow"><div className="progress-fill" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pct > 100 ? '#f43f5e' : '#5dbd8c' }}></div></div><span className="text-[9px] font-mono font-bold w-10 text-right text-zinc-400">{pct.toFixed(1)}%</span></div>
-                                            )}
-                                        </li>
+                                            <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor: gastado > 0 ? COLORES_PASTEL[i % COLORES_PASTEL.length] : '#333'}}></span><span className={`${catDimmed ? 'text-zinc-600' : 'text-zinc-400'} truncate max-w-[140px]`}>{cat}</span></div>
+                                            <span className={`font-mono ${catDimmed ? 'text-zinc-600' : 'text-[#5dbd8c]'}`}>{formatoMoneda(gastado)}</span>
+                                        </div>
                                     );
                                 })}
-                            </ul>
-                        </div>
-                    </div>
-
-                    {/* ── Tendencia Patrimonio ── */}
-                    <div className={`glass-card p-6 transition-all duration-300 ${trendExpanded ? 'ring-1 ring-[#5dbd8c]/30' : ''}`}>
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
-                            <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => setTrendExpanded(!trendExpanded)}>
-                                <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">Tendencia {trendMonths} Meses</h3>
-                                <span className="text-[9px] text-zinc-600 bg-zinc-900 px-2 py-0.5 rounded-full">{trendExpanded ? '▼' : '▶'}</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={(e) => { e.stopPropagation(); setShowTrendActivo(!showTrendActivo); }} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-full border transition-all flex items-center gap-1.5 ${showTrendActivo ? 'bg-[#22c55e]/15 border-[#22c55e]/50 text-[#22c55e]' : 'border-zinc-800 text-zinc-600'}`}>
-                                    <span className="w-2 h-2 rounded-full" style={{backgroundColor:'#22c55e'}}></span>Activos
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); setShowTrendPasivo(!showTrendPasivo); }} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-full border transition-all flex items-center gap-1.5 ${showTrendPasivo ? 'bg-[#ef4444]/15 border-[#ef4444]/50 text-[#ef4444]' : 'border-zinc-800 text-zinc-600'}`}>
-                                    <span className="w-2 h-2 rounded-full" style={{backgroundColor:'#ef4444'}}></span>Pasivos
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); setShowTrendPatrimonio(!showTrendPatrimonio); }} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-full border transition-all flex items-center gap-1.5 ${showTrendPatrimonio ? 'bg-[#3b82f6]/15 border-[#3b82f6]/50 text-[#3b82f6]' : 'border-zinc-800 text-zinc-600'}`}>
-                                    <span className="w-2 h-2 rounded-full" style={{backgroundColor:"#3b82f6"}}></span>Patrimonio
-                                </button>
                             </div>
                         </div>
-
-                        {trendExpanded && (
-                            <div className="mb-4 p-4 bg-zinc-900/50 rounded border border-zinc-800 grid grid-cols-2 gap-4 fade-in">
-                                <div>
-                                    <label className="text-[9px] uppercase text-zinc-500 block mb-1 font-bold">Meses Históricos</label>
-                                    <select className="w-full p-2 text-xs rounded bg-black outline-none border border-zinc-800 font-bold text-white" value={trendMonths} onChange={e => setTrendMonths(Number(e.target.value))}>
-                                        <option value={3}>3 meses</option>
-                                        <option value={6}>6 meses</option>
-                                        <option value={12}>12 meses</option>
-                                        <option value={18}>18 meses</option>
-                                        <option value={24}>24 meses</option>
-                                    </select>
-                                </div>
-                                <div className="col-span-full grid grid-cols-3 gap-2 text-center text-[9px]">
-                                    {(() => {
-                                        const last = patrimonioData.slice(-1)[0] || {};
-                                        return (<>
-                                            <div className="bg-[#22c55e]/10 border border-[#22c55e]/30 rounded p-2">
-                                                <span className="text-zinc-500 block text-[8px] uppercase">Activos</span>
-                                                <span className="text-[#22c55e] font-bold">{formatoMoneda(last.activo || 0)}</span>
-                                            </div>
-                                            <div className="bg-[#ef4444]/10 border border-[#ef4444]/30 rounded p-2">
-                                                <span className="text-zinc-500 block text-[8px] uppercase">Pasivos</span>
-                                                <span className="text-[#ef4444] font-bold">{formatoMoneda(last.pasivo || 0)}</span>
-                                            </div>
-                                            <div className="bg-[#5dbd8c]/10 border border-[#5dbd8c]/30 rounded p-2">
-                                                <span className="text-zinc-500 block text-[8px] uppercase">Patrimonio</span>
-                                                <span className="text-[#5dbd8c] font-bold">{formatoMoneda(last.patrimonio || 0)}</span>
-                                            </div>
-                                        </>);
-                                    })()}
-                                </div>
-                            </div>
-                        )}
-
-                        {patrimonioData.length === 0 ? (
-                            <p className="text-zinc-600 text-xs text-center py-8">Sin datos de tendencia</p>
-                        ) : (() => {
-                            const anyVisible = showTrendActivo || showTrendPasivo || showTrendPatrimonio;
-                            if (!anyVisible) return <p className="text-zinc-500 text-xs text-center py-8">Selecciona al menos una serie ↑</p>;
-                            // Pasivos van hacia abajo (negativos), Activos hacia arriba
-                            const maxActivo = showTrendActivo ? Math.max(...patrimonioData.map(d=>d.activo), 1) : 0;
-                            const maxPasivo = showTrendPasivo ? Math.max(...patrimonioData.map(d=>d.pasivo), 1) : 0;
-                            const maxPat = showTrendPatrimonio ? Math.max(...patrimonioData.map(d=>Math.abs(d.patrimonio)), 1) : 0;
-                            const minPat = showTrendPatrimonio ? Math.abs(Math.min(...patrimonioData.map(d=>d.patrimonio), 0)) : 0;
-                            const niceMax = Math.ceil(Math.max(maxActivo, maxPat) / 1000) * 1000 || 1000;
-                            const niceMin = -Math.ceil(Math.max(maxPasivo, minPat) / 1000) * 1000;
-                            const yRange = niceMax - niceMin;
-                            const H = trendExpanded ? 300 : 200, W_OFF = 55, W_RIGHT = 20, BOT = 30, TOP = 12;
-                            const chartH = H + BOT + TOP;
-                            const gap = trendExpanded ? 65 : Math.max(35, 900 / patrimonioData.length);
-                            const totalW = W_OFF + patrimonioData.length * gap + W_RIGHT;
-                            const yScale = (v) => TOP + ((niceMax - v) / yRange) * H;
-                            const zeroY = yScale(0);
-                            const tickCount = 5;
-                            const yTicks = Array.from({length: tickCount + 1}, (_, i) => niceMin + (yRange / tickCount) * i);
-                            return (
-                                <div className="overflow-x-auto" onClick={() => { if (!trendExpanded) setTrendExpanded(true); }} style={{cursor: trendExpanded ? "default" : "pointer", background:"#0a0a0a", borderRadius:"6px", padding:"6px"}}>
-                                    <svg viewBox={`0 0 ${totalW} ${chartH}`} className="w-full" style={{minWidth:'480px',height:'auto'}}>
-                                        <defs>
-                                            <linearGradient id="gradActD" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#22c55e" stopOpacity="0.2"/><stop offset="100%" stopColor="#22c55e" stopOpacity="0.02"/></linearGradient>
-                                            <linearGradient id="gradPasD" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.02"/><stop offset="100%" stopColor="#ef4444" stopOpacity="0.15"/></linearGradient>
-                                        </defs>
-                                        {yTicks.map((t,i) => (<g key={i}><line x1={W_OFF} y1={yScale(t)} x2={W_OFF+patrimonioData.length*gap-5} y2={yScale(t)} stroke={t===0?'#333':'#1f1f1f'} strokeWidth={t===0?'1.5':'1'} strokeDasharray={t===0?'':'4 4'}/><text x={W_OFF-8} y={yScale(t)+4} textAnchor="end" className="text-[8px] fill-zinc-600" style={{fontFamily:'JetBrains Mono,monospace'}}>{t>=0?'$'+Math.round(t/1000)+'k':'-$'+Math.round(Math.abs(t)/1000)+'k'}</text></g>))}
-                                        <line x1={W_OFF} y1={zeroY} x2={W_OFF+patrimonioData.length*gap-5} y2={zeroY} stroke="#333" strokeWidth="1.5"/>
-                                        {patrimonioData.map((d,i) => <text key={'lbl'+i} x={W_OFF+i*gap} y={TOP+H+16} textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>{d.label}</text>)}
-                                        {/* Activos: verde, arriba */}
-                                        {showTrendActivo && (() => { const pts=patrimonioData.map((d,i)=>`${W_OFF+i*gap},${yScale(d.activo)}`).join(' '); const fx=W_OFF,lx=W_OFF+(patrimonioData.length-1)*gap; return (<g><polygon points={`${fx},${zeroY} ${pts} ${lx},${zeroY}`} fill="url(#gradActD)"/><polyline points={pts} fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.95"/>{patrimonioData.map((d,i)=><circle key={'a'+i} cx={W_OFF+i*gap} cy={yScale(d.activo)} r={trendExpanded?5:4} fill="#22c55e" stroke="#050505" strokeWidth="2"><title>Activos {d.label}: {formatoMoneda(d.activo)}</title></circle>)}</g>);})()}
-                                        {/* Pasivos: rojo, abajo (negativos) */}
-                                        {showTrendPasivo && (() => { const pts=patrimonioData.map((d,i)=>`${W_OFF+i*gap},${yScale(-d.pasivo)}`).join(' '); const fx=W_OFF,lx=W_OFF+(patrimonioData.length-1)*gap; return (<g><polygon points={`${fx},${zeroY} ${pts} ${lx},${zeroY}`} fill="url(#gradPasD)"/><polyline points={pts} fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.95"/>{patrimonioData.map((d,i)=><circle key={'p'+i} cx={W_OFF+i*gap} cy={yScale(-d.pasivo)} r={trendExpanded?5:4} fill="#ef4444" stroke="#050505" strokeWidth="2"><title>Pasivos {d.label}: {formatoMoneda(d.pasivo)}</title></circle>)}</g>);})()}
-                                        {/* Patrimonio: teal */}
-                                        {showTrendPatrimonio && (() => { const pts=patrimonioData.map((d,i)=>`${W_OFF+i*gap},${yScale(d.patrimonio)}`).join(' '); const fx=W_OFF,lx=W_OFF+(patrimonioData.length-1)*gap; return (<g><polygon points={`${fx},${zeroY} ${pts} ${lx},${zeroY}`} fill="#3b82f6" opacity="0.08"/><polyline points={pts} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.95"/>{patrimonioData.map((d,i)=><circle key={'n'+i} cx={W_OFF+i*gap} cy={yScale(d.patrimonio)} r={trendExpanded?5:4} fill="#3b82f6" stroke="#050505" strokeWidth="2"><title>Patrimonio {d.label}: {formatoMoneda(d.patrimonio)}</title></circle>)}</g>);})()}
-                                        {trendExpanded && (() => { const all=[]; patrimonioData.forEach((d,i)=>{ const x=W_OFF+i*gap; if(showTrendActivo)all.push({x,y:yScale(d.activo),val:d.activo,color:'#22c55e',key:'a'+i}); if(showTrendPasivo)all.push({x,y:yScale(-d.pasivo),val:d.pasivo,color:'#ef4444',key:'p'+i}); if(showTrendPatrimonio)all.push({x,y:yScale(d.patrimonio),val:d.patrimonio,color:"#3b82f6",key:'n'+i}); }); const gr={}; all.forEach(l=>{if(!gr[l.x])gr[l.x]=[];gr[l.x].push(l);}); const pos=[]; Object.values(gr).forEach(g=>{ g.sort((a,b)=>a.y-b.y); let pb=-Infinity; g.forEach(l=>{ let ly=l.y-12; if(ly<TOP+8)ly=l.y+14; if(ly-8<pb)ly=pb+13; if(ly>TOP+H-2)ly=l.y-12; pb=ly+8; pos.push({...l,labelY:ly}); }); }); return pos.map(pl=>(<text key={'vl'+pl.key} x={pl.x} y={pl.labelY} textAnchor="middle" className="text-[8px] font-bold" fill={pl.color} style={{fontFamily:'JetBrains Mono,monospace',paintOrder:'stroke',stroke:'#050505',strokeWidth:'3px',strokeLinecap:'round',strokeLinejoin:'round'}}>{pl.val>=1000?'$'+Math.round(pl.val/1000)+'k':'$'+Math.round(pl.val)}</text>)); })()}
-                                    </svg>
-                                    {!trendExpanded && <p className="text-[8px] text-zinc-600 text-center mt-2">Click para expandir</p>}
-                                </div>
-                            );
-                        })()}
                     </div>
 
                     <div className="glass-card overflow-hidden">
