@@ -491,10 +491,6 @@
                 return Object.keys(map).map(k => ({ nombre: k, total: map[k] })).sort((a,b) => b.total - a.total);
             }, [logsGraficoIngresos, viewScope]);
 
-            // ── Donut dinámico (gasto o ingreso) ──
-            const donutData = donutModo === 'gasto' ? categoriasData : ingresosCategoriasData;
-            const donutTotal = donutModo === 'gasto' ? totalGastoView : totalIngresoView;
-
             const categoriasData = useMemo(() => {
                 let map = {};
                 logsGraficoFiltrado.forEach(l => {
@@ -511,6 +507,10 @@
                 return cats;
             }, [categoriasData, currentPresupuesto]);
             const donutCategoriasRender = useMemo(() => donutModo === 'gasto' ? categoriasParaRender : ingresosCategoriasData, [donutModo, categoriasParaRender, ingresosCategoriasData]);
+
+            // ── Donut dinámico (gasto o ingreso) ──
+            const donutData = donutModo === 'gasto' ? categoriasData : ingresosCategoriasData;
+            const donutTotal = donutModo === 'gasto' ? totalGastoView : totalIngresoView;
 
             // ── Pie chart click state ──
             const [pieSelected, setPieSelected] = useState(null);
