@@ -501,6 +501,11 @@
             }, [logsGraficoFiltrado, viewScope]);
 
             const currentPresupuesto = presupuesto[viewScope] || {};
+
+            // ── Pie chart click state ──
+            const [pieSelected, setPieSelected] = useState(null);
+            const [donutModo, setDonutModo] = useState('gasto');
+
             const categoriasParaRender = useMemo(() => {
                 let cats = [...categoriasData]; 
                 Object.keys(currentPresupuesto).forEach(catName => { if (currentPresupuesto[catName] > 0 && !cats.find(c => c.nombre === catName)) cats.push({ nombre: catName, total: 0 }); });
@@ -511,10 +516,6 @@
             // ── Donut dinámico (gasto o ingreso) ──
             const donutData = donutModo === 'gasto' ? categoriasData : ingresosCategoriasData;
             const donutTotal = donutModo === 'gasto' ? totalGastoView : totalIngresoView;
-
-            // ── Pie chart click state ──
-            const [pieSelected, setPieSelected] = useState(null);
-            const [donutModo, setDonutModo] = useState('gasto');
 
             // ── SVG Donut segments ──
             const pieSegments = useMemo(() => {
