@@ -1,5 +1,5 @@
 // Finance Lab Service Worker — enables PWA app-drawer install on Android
-const CACHE_NAME = 'financelab-v3';
+const CACHE_NAME = 'financelab-v4';
 const ASSETS = [
   './',
   './index.html',
