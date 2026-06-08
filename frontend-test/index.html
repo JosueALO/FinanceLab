@@ -654,8 +654,8 @@
                             if (tg.includes('Personal')) _tipoTag = 'Per';
                             else if (tg.includes('Compartido')) _tipoTag = '50/50';
                             else if (tg.includes('Proporcional')) {
-                                const m = tg.match(/\((\d+)/(\d+)\)/);
-                                _tipoTag = m ? `${m[1]}/${m[2]}` : 'Prop';
+                                const parts = tg.match(/\d+/g);
+                                _tipoTag = parts && parts.length >= 2 ? parts[0]+'/'+parts[1] : 'Prop';
                             }
                         }
                         rows.push({ ...l, _key: l.ID_Unico, _cuenta: l.Cuenta_Origen, _amount: isGasto ? -aporte : aporte, _color: isGasto ? 'text-rose-400' : 'text-[#5dbd8c]', _parcial: aporte, _total: mTotal, _tipoTag });
