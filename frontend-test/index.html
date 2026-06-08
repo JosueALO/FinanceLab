@@ -1382,18 +1382,20 @@
 
             // ── Balance AJ (deuda entre Josué y Abi) ──
             const balanceAJ = useMemo(() => {
-                return rawLogs.filter(l => l.Periodo_Pago === periodoActivo).reduce((acc, curr) => {
+                return rawLogs.filter(l => l.Periodo_Pago === periodoActivo && l.Es_Recordatorio !== 'TRUE').reduce((acc, curr) => {
                     const monto = Number(curr.Monto_Parcial) || 0;
                     if (curr.Tipo_Operacion === 'Transferencia') {
-                        if (mapCuentas[curr.Cuenta_Origen] === 'Abi' && mapCuentas[curr.Cuenta_Destino] === 'Josué') return acc - monto;
-                        if (mapCuentas[curr.Cuenta_Origen] === 'Josué' && mapCuentas[curr.Cuenta_Destino] === 'Abi') return acc + monto;
+                        const propO = mapCuentas[curr.Cuenta_Origen];
+                        const propD = mapCuentas[curr.Cuenta_Destino];
+                        if (mismoProp(propO, 'Abi') && mismoProp(propD, 'Josue')) return acc - monto;
+                        if (mismoProp(propO, 'Josue') && mismoProp(propD, 'Abi')) return acc + monto;
                         return acc;
                     }
                     if (curr.Tipo_Operacion === 'Gasto') {
                         const pJ = Number(curr.Participacion_Josue) || 0, pA = Number(curr.Participacion_Abi) || 0;
                         const prop = mapCuentas[curr.Cuenta_Origen];
-                        if (prop === 'Josué') return acc + pA;
-                        if (prop === 'Abi') return acc - pJ;
+                        if (mismoProp(prop, 'Josue')) return acc + pA;
+                        if (mismoProp(prop, 'Abi')) return acc - pJ;
                     }
                     return acc;
                 }, 0);
@@ -1407,18 +1409,20 @@
                     .filter(p => parseP(p) <= fechaActivo)
                     .sort((a,b) => parseP(a) - parseP(b));
                 return periodosHasta.reduce((acc, p) => {
-                    return rawLogs.filter(l => l.Periodo_Pago === p).reduce((inner, curr) => {
+                    return rawLogs.filter(l => l.Periodo_Pago === p && l.Es_Recordatorio !== 'TRUE').reduce((inner, curr) => {
                         const monto = Number(curr.Monto_Parcial) || 0;
                         if (curr.Tipo_Operacion === 'Transferencia') {
-                            if (mapCuentas[curr.Cuenta_Origen] === 'Abi' && mapCuentas[curr.Cuenta_Destino] === 'Josué') return inner - monto;
-                            if (mapCuentas[curr.Cuenta_Origen] === 'Josué' && mapCuentas[curr.Cuenta_Destino] === 'Abi') return inner + monto;
+                            const propO = mapCuentas[curr.Cuenta_Origen];
+                            const propD = mapCuentas[curr.Cuenta_Destino];
+                            if (mismoProp(propO, 'Abi') && mismoProp(propD, 'Josue')) return inner - monto;
+                            if (mismoProp(propO, 'Josue') && mismoProp(propD, 'Abi')) return inner + monto;
                             return inner;
                         }
                         if (curr.Tipo_Operacion === 'Gasto') {
                             const pJ = Number(curr.Participacion_Josue) || 0, pA = Number(curr.Participacion_Abi) || 0;
                             const prop = mapCuentas[curr.Cuenta_Origen];
-                            if (prop === 'Josué') return inner + pA;
-                            if (prop === 'Abi') return inner - pJ;
+                            if (mismoProp(prop, 'Josue')) return inner + pA;
+                            if (mismoProp(prop, 'Abi')) return inner - pJ;
                         }
                         return inner;
                     }, acc);
