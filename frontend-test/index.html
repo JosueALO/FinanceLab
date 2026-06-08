@@ -234,9 +234,10 @@
             const fechaActual = parseP(actual);
             const idxActual = periodos.indexOf(periodoActivo);
             
-            // Dividir en pasados (antes de hoy) y futuros (hoy en adelante)
+            // Dividir en pasados (< hoy), presente (= hoy), futuros (> hoy)
             const pasados = periodos.filter(p => parseP(p) < fechaActual);
-            const futuros = periodos.filter(p => parseP(p) >= fechaActual);
+            const presente = periodos.filter(p => p === actual);
+            const futuros = periodos.filter(p => parseP(p) > fechaActual);
             
             const DEFAULT_WINDOW = 4;
             const pastSlice = showMorePast ? pasados : pasados.slice(Math.max(0, pasados.length - DEFAULT_WINDOW));
@@ -272,7 +273,7 @@
                             <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800/50">
                                 <button onClick={() => { setPeriodoActivo(actual); setOpen(false); }} className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-[#5dbd8c] transition-colors">
                                     <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                    Hoy
+                                    Presente
                                 </button>
                                 <button onClick={() => setShowPicker(!showPicker)} className={`flex items-center gap-1 text-[10px] transition-colors ${showPicker ? 'text-[#5dbd8c]' : 'text-zinc-500 hover:text-zinc-300'}`}>
                                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -329,6 +330,16 @@
                                         <button key={p} onClick={() => { setPeriodoActivo(p); setOpen(false); }} className={`w-full text-left px-3 py-1.5 flex items-center justify-between transition-colors ${isActive ? 'bg-[#5dbd8c]/15 border-l-2 border-[#5dbd8c]' : 'hover:bg-zinc-900/50 border-l-2 border-transparent'}`}>
                                             <span className={`text-[11px] font-mono ${isActive ? 'text-[#5dbd8c] font-bold' : isCurrent ? 'text-white font-semibold' : 'text-zinc-500'}`}>{p}</span>
                                             <span className="text-[8px] text-zinc-600">{isCurrent ? 'Actual' : isActive ? 'Selecc.' : ''}</span>
+                                        </button>
+                                    );
+                                })}
+                                {/* ── Presente ── */}
+                                {presente.length > 0 && presente.map(p => {
+                                    const isActive = p === periodoActivo;
+                                    return (
+                                        <button key={p} onClick={() => { setPeriodoActivo(p); setOpen(false); }} className={`w-full text-left px-3 py-1.5 flex items-center justify-between transition-colors ${isActive ? 'bg-[#5dbd8c]/15 border-l-2 border-[#5dbd8c]' : 'hover:bg-zinc-900/50 border-l-2 border-transparent'}`}>
+                                            <span className={`text-[11px] font-mono ${isActive ? 'text-[#5dbd8c] font-bold' : 'text-white font-semibold'}`}>{p}</span>
+                                            <span className="text-[8px] text-[#5dbd8c] font-bold">Presente</span>
                                         </button>
                                     );
                                 })}
