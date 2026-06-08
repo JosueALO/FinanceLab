@@ -1308,7 +1308,7 @@
                                     <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='gasto'?null:'gasto')}>
                                         Gasto <span className="text-[8px] text-zinc-700">{balanceTooltip==='gasto'?'▲':'▼'}</span>
                                     </p>
-                                    {balanceTooltip==='gasto' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Total de gastos en este corte (misma lógica que el Tablero). Sin transferencias ni ingresos. Se filtra según la vista: Hogar excluye Personales, Josué/Abi solo su participación.</div>)}
+                                    {balanceTooltip==='gasto' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Total de gastos en este corte (misma lógica que Auditoría). Sin transferencias ni ingresos. Se filtra según la vista: Hogar excluye Personales, Josué/Abi solo su participación.</div>)}
                                     <p className="text-2xl font-bold accent-glow mt-1">{formatoMoneda(totalScope)}</p>
                                 </div>
                                 <div className="relative">
@@ -1338,7 +1338,7 @@
                                     <p className="text-[9px] text-zinc-600 uppercase cursor-pointer hover:text-white transition-colors inline-flex items-center gap-1" onClick={()=>setBalanceTooltip(balanceTooltip==='gastoAcum'?null:'gastoAcum')}>
                                         Gasto Acum. <span className="text-[8px] text-zinc-700">{balanceTooltip==='gastoAcum'?'▲':'▼'}</span>
                                     </p>
-                                    {balanceTooltip==='gastoAcum' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Suma de todos los gastos desde el primer registro hasta este corte. Misma lógica de scope que el Tablero.</div>)}
+                                    {balanceTooltip==='gastoAcum' && (<div className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 text-zinc-300 text-[8px] rounded p-2.5 border border-zinc-700 shadow-xl z-30 fade-in leading-relaxed">Suma de todos los gastos desde el primer registro hasta este corte. Misma lógica de scope que Auditoría.</div>)}
                                     <p className="text-2xl font-bold accent-glow mt-1">{formatoMoneda(acumulados.gastoAcum)}</p>
                                 </div>
                                 <div className="relative">
@@ -2282,7 +2282,7 @@
                     
                     <div className="glass-card p-4">
                         <p className="text-[9px] text-zinc-600">
-                            <span className="text-amber-500">⚠️</span> Tips: Al eliminar una transacción desde el Tablero, se moverá aquí automáticamente. Puedes restaurarla o eliminarla permanentemente.
+                            <span className="text-amber-500">⚠️</span> Tips: Al eliminar una transacción desde Auditoría, se moverá aquí automáticamente. Puedes restaurarla o eliminarla permanentemente.
                         </p>
                     </div>
                 </div>
@@ -2293,7 +2293,8 @@
         const App = () => {
             const [authed, setAuthed] = useState(() => localStorage.getItem('fl_auth') === '1');
             const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('fl_user') || 'josue');
-            const [view, setView] = useState('panel');
+            const [view, setView] = useState(() => { try { return localStorage.getItem('fl_view') || 'dash'; } catch(e) { return 'dash'; } });
+            useEffect(() => { try { localStorage.setItem('fl_view', view); } catch(e) {} }, [view]);
             const [showRegistroForm, setShowRegistroForm] = useState(false);
             const [drawerOpen, setDrawerOpen] = useState(false);
             const [tagsInput, setTagsInput] = useState('');
@@ -2448,7 +2449,7 @@
                 };
                 return (
                     <div className="max-w-3xl mx-auto p-4 pt-6">
-                        <button onClick={() => setView('dash')} className="text-zinc-500 hover:text-white text-xs mb-4 block">← Volver al tablero</button>
+                        <button onClick={() => setView('dash')} className="text-zinc-500 hover:text-white text-xs mb-4 block">← Volver a auditoría</button>
                         <SettingsPanel />
                     </div>
                 );
@@ -2468,9 +2469,9 @@
                         </div>
                         <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded border border-zinc-800 overflow-x-auto pwa-compact">
                             <button onClick={() => setView(view === 'settings' ? 'dash' : 'settings')} title="Ajustes" className={`px-2 py-2 rounded transition-colors border-r border-zinc-700 mr-1 ${view==='settings'?'bg-[#3d8068] text-black':'text-zinc-500 hover:text-white'}`}><IconGear /></button>
-                            {['panel', 'recordatorios', 'cuentas', 'dash', 'plan'].map(v => (
+                            {['dash', 'panel', 'recordatorios', 'cuentas', 'plan'].map(v => (
                                 <button key={v} onClick={() => { loadData(); setView(v); setForm(prev => ({...prev, id_edit: null})); }} className={`px-4 py-2 text-[10px] font-bold uppercase rounded transition-colors whitespace-nowrap ${view === v ? 'bg-[#5dbd8c] text-black' : 'text-zinc-500 hover:text-white'}`}>
-                                    {v==='panel'?'Panel':(v==='dash'?'Tablero':(v==='recordatorios'?'Memo':v))}
+                                    {v==='dash'?'Auditoría':(v==='panel'?'Panel':(v==='recordatorios'?'Memo':(v==='cuentas'?'Cuentas':'Categorías')))}
                                 </button>
                             ))}
                         </div>
@@ -2488,6 +2489,7 @@
                         <div className="drawer-section">
                             <div className="drawer-section-title">Principal</div>
                             <div className={`drawer-item ${view==='panel'?'active':''}`} onClick={() => { setView('panel'); setDrawerOpen(false); }}><IconHome /> Panel</div>
+                            <div className={`drawer-item ${view==='dash'?'active':''}`} onClick={() => { setView('dash'); setDrawerOpen(false); }}><IconSearch /> Auditoría</div>
                             <div className={`drawer-item ${view==='registro'?'active':''}`} onClick={() => { setShowRegistroForm(true); setDrawerOpen(false); }}><IconEdit /> Registrar</div>
                             <div className={`drawer-item ${view==='calendar'?'active':''}`} onClick={() => { setView('calendar'); setDrawerOpen(false); }}><IconCalendar /> Calendario</div>
                         </div>
