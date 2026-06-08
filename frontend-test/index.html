@@ -649,7 +649,7 @@
                         const isGasto = l.Tipo_Operacion === 'Gasto';
                         // Tag abreviado del tipo de gasto
                         let _tipoTag = '';
-                        if (isGasto && l.Tipo_Gasto) {
+                        if (isGasto && l.Tipo_Gasto && typeof l.Tipo_Gasto === 'string') {
                             const tg = l.Tipo_Gasto;
                             if (tg.includes('Personal')) _tipoTag = 'Per';
                             else if (tg.includes('Compartido')) _tipoTag = '50/50';
@@ -1009,7 +1009,7 @@
                                         return (
                                             <div key={row._key} tabIndex="0" className="flex items-center py-2.5 px-3 hover:bg-zinc-900/50 group transition-colors relative cursor-default">
                                                 {/* Left: Account + Date */}
-                                                <div className="w-[22%] md:w-[18%] flex-shrink-0 flex flex-col min-w-0">
+                                                <div className="w-24 md:w-28 flex-shrink-0 flex flex-col min-w-0">
                                                     <span className="text-[10px] text-zinc-400 truncate font-medium">{row._cuenta}</span>
                                                     <span className="text-[8px] text-zinc-600 font-mono">{row.Fecha_Compra}</span>
                                                 </div>
@@ -1027,7 +1027,7 @@
                                                 </div>
                                                 
                                                 {/* Right: Amount + Ticket */}
-                                                <div className="text-right flex-shrink-0 w-[25%] md:w-[20%] min-w-[80px]">
+                                                <div className="text-right flex-shrink-0 ml-2 w-24 md:w-28">
                                                     <div className={`text-[12px] font-mono font-bold ${row._color}`}>
                                                         {row._amount < 0 ? '-' : ''}{formatoMoneda(Math.abs(row._amount))}
                                                     </div>
