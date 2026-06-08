@@ -400,15 +400,17 @@
             const [advCategories, setAdvCategories] = useState([]);
             const [advAccounts, setAdvAccounts] = useState([]);
             const [advTags, setAdvTags] = useState([]);
+            const [advTipoGasto, setAdvTipoGasto] = useState([]);
 
             const periodos = useMemo(() => [...new Set(rawLogs.map(l => l.Periodo_Pago))].filter(Boolean).sort((a, b) => { try { const pA = String(a).split('/'); const pB = String(b).split('/'); return new Date(pB[2], pB[1]-1, pB[0]) - new Date(pA[2], pA[1]-1, pA[0]); } catch(e) { return 0; } }), [rawLogs]);
             const getPeriodoActual = () => { const hoy = new Date(); let m = hoy.getMonth(), a = hoy.getFullYear(); if (hoy.getDate() > 19) m += 1; const u = new Date(a, m + 1, 0); return `${String(u.getDate()).padStart(2, '0')}/${String(u.getMonth() + 1).padStart(2, '0')}/${u.getFullYear()}`; };
             const [periodoActivo, setPeriodoActivo] = useState(periodos.includes(getPeriodoActual()) ? getPeriodoActual() : (periodos[0] || getPeriodoActual()));
             
             const [hiddenTipos, setHiddenTipos] = useState([]);
+            const [modoAcumulado, setModoAcumulado] = useState(false);
             useEffect(() => { setHiddenTipos([]); setFiltroCategorias([]); }, [viewScope, periodoActivo]);
 
-            const logsGlobal = useMemo(() => rawLogs.filter(l => l.Periodo_Pago === periodoActivo), [rawLogs, periodoActivo]);
+            const logsGlobal = useMemo(() => modoAcumulado ? rawLogs : rawLogs.filter(l => l.Periodo_Pago === periodoActivo), [rawLogs, periodoActivo, modoAcumulado]);
             const logsGrafico = useMemo(() => logsGlobal.filter(l => {
                 if (l.Tipo_Operacion === 'Transferencia' || l.Tipo_Operacion === 'Ingreso') return false; 
                 if (viewScope === 'Compartido') return !l.Tipo_Gasto.includes('Personal');
@@ -425,7 +427,10 @@
             const allCategories = useMemo(() => [...new Set(logsGlobal.map(l => l.Categoria).filter(Boolean))].sort(), [logsGlobal]);
             const allAccounts = useMemo(() => cuentas.map(c => c.nombre).sort(), [cuentas]);
             const allTags = useMemo(() => { const tags = new Set(); rawLogs.forEach(l => { if (l.Tags) l.Tags.split(',').forEach(t => { const tt = t.trim(); if (tt) tags.add(tt); }); }); return [...tags].sort(); }, [rawLogs]);
-            const advFiltersActive = advDateFrom || advDateTo || advAmountMin || advAmountMax || advCategories.length > 0 || advAccounts.length > 0 || advTags.length > 0;
+            const allTipoGasto = useMemo(() => [...new Set(logsGlobal.map(l => l.Tipo_Gasto).filter(Boolean))].sort(), [logsGlobal]);
+            const allCategoriesGasto = useMemo(() => [...new Set(logsGlobal.filter(l => l.Tipo_Operacion === 'Gasto').map(l => l.Categoria).filter(Boolean))].sort(), [logsGlobal]);
+            const allCategoriesIngreso = useMemo(() => [...new Set(logsGlobal.filter(l => l.Tipo_Operacion === 'Ingreso').map(l => l.Categoria).filter(Boolean))].sort(), [logsGlobal]);
+            const advFiltersActive = advDateFrom || advDateTo || advAmountMin || advAmountMax || advCategories.length > 0 || advAccounts.length > 0 || advTags.length > 0 || advTipoGasto.length > 0;
 
             const auditoriaRows = useMemo(() => {
                 let rows = [];
@@ -439,6 +444,7 @@
                     if (advCategories.length > 0 && !advCategories.includes(l.Categoria)) return;
                     if (advAccounts.length > 0 && !advAccounts.includes(l.Cuenta_Origen) && !(l.Tipo_Operacion==='Transferencia' && advAccounts.includes(l.Cuenta_Destino))) return;
                     if (advTags.length > 0) { const rowTags = (l.Tags || '').split(',').map(t => t.trim()); if (!advTags.some(t => rowTags.includes(t))) return; }
+                    if (advTipoGasto.length > 0 && !advTipoGasto.includes(l.Tipo_Gasto)) return;
                     if (advDateFrom && l.Fecha_Compra < advDateFrom) return;
                     if (advDateTo && l.Fecha_Compra > advDateTo) return;
                     const mParcial = Number(l.Monto_Parcial) || 0;
@@ -463,9 +469,31 @@
                 });
                 rows.sort((a, b) => { const ta = a._sortTS || 0, tb = b._sortTS || 0; if (ta !== tb) return tb - ta; return (a._regTS || 0) - (b._regTS || 0); });
                 return rows;
-            }, [logsGlobal, viewScope, filtroCategorias, busquedaDebounced, advCategories, advAccounts, advTags, advDateFrom, advDateTo, advAmountMin, advAmountMax]);
+            }, [logsGlobal, viewScope, filtroCategorias, busquedaDebounced, advCategories, advAccounts, advTags, advTipoGasto, advDateFrom, advDateTo, advAmountMin, advAmountMax]);
 
             const totalGastoView = logsGraficoFiltrado.reduce((acc, l) => acc + (viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi))), 0);
+
+            // ── Datos de Ingresos para donut ──
+            const logsGraficoIngresos = useMemo(() => logsGlobal.filter(l => {
+                if (l.Tipo_Operacion !== 'Ingreso') return false;
+                if (viewScope === 'Compartido') return !(l.Tipo_Gasto && l.Tipo_Gasto.includes('Personal'));
+                if (viewScope === 'Josue') return Number(l.Participacion_Josue) > 0;
+                if (viewScope === 'Abi') return Number(l.Participacion_Abi) > 0;
+                return false;
+            }), [logsGlobal, viewScope]);
+            const totalIngresoView = logsGraficoIngresos.reduce((acc, l) => acc + (viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi))), 0);
+            const ingresosCategoriasData = useMemo(() => {
+                let map = {};
+                logsGraficoIngresos.forEach(l => {
+                    let amt = viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi));
+                    if (amt > 0) map[l.Categoria] = (map[l.Categoria] || 0) + amt;
+                });
+                return Object.keys(map).map(k => ({ nombre: k, total: map[k] })).sort((a,b) => b.total - a.total);
+            }, [logsGraficoIngresos, viewScope]);
+
+            // ── Donut dinámico (gasto o ingreso) ──
+            const donutData = donutModo === 'gasto' ? categoriasData : ingresosCategoriasData;
+            const donutTotal = donutModo === 'gasto' ? totalGastoView : totalIngresoView;
 
             const categoriasData = useMemo(() => {
                 let map = {};
@@ -482,23 +510,25 @@
                 Object.keys(currentPresupuesto).forEach(catName => { if (currentPresupuesto[catName] > 0 && !cats.find(c => c.nombre === catName)) cats.push({ nombre: catName, total: 0 }); });
                 return cats;
             }, [categoriasData, currentPresupuesto]);
+            const donutCategoriasRender = useMemo(() => donutModo === 'gasto' ? categoriasParaRender : ingresosCategoriasData, [donutModo, categoriasParaRender, ingresosCategoriasData]);
 
             // ── Pie chart click state ──
             const [pieSelected, setPieSelected] = useState(null);
+            const [donutModo, setDonutModo] = useState('gasto');
 
             // ── SVG Donut segments ──
             const pieSegments = useMemo(() => {
-                if (categoriasData.length === 0 || totalGastoView === 0) return [];
+                if (donutData.length === 0 || donutTotal === 0) return [];
                 let startAngle = -Math.PI / 2;
-                return categoriasData.map((cat, i) => {
-                    const pct = cat.total / totalGastoView;
+                return donutData.map((cat, i) => {
+                    const pct = cat.total / donutTotal;
                     const angle = pct * 2 * Math.PI;
                     const endAngle = startAngle + angle;
                     const result = { ...cat, pct, color: COLORES_PASTEL[i % COLORES_PASTEL.length], startAngle, endAngle };
                     startAngle = endAngle;
                     return result;
                 });
-            }, [categoriasData, totalGastoView]);
+            }, [donutData, donutTotal]);
 
             const sortedLogs = useMemo(() => auditoriaRows, [auditoriaRows]);
             const [pageSize, setPageSize] = useState(20);
@@ -513,11 +543,17 @@
                                 {['Compartido', 'Josue', 'Abi'].map(s=><button key={s} onClick={() => setViewScope(s)} className={`px-4 py-2 text-[10px] font-bold uppercase rounded flex-1 md:flex-none transition-colors ${viewScope === s ? 'bg-[#5dbd8c] text-black' : 'text-zinc-500 hover:text-white'}`}>{s==='Compartido'?'Hogar':s}</button>)}
                             </div>
                             <div className="flex items-center gap-3 w-full md:w-auto">
-                                <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold whitespace-nowrap">Corte Operativo</span>
-                                <select className="p-2 text-sm bg-zinc-900 rounded border border-zinc-800 w-full md:w-auto outline-none text-[#5dbd8c] font-bold" value={periodoActivo} onChange={e => setPeriodoActivo(e.target.value)}>
-                                    {periodos.length === 0 && <option>{periodoActivo}</option>}
-                                    {periodos.map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
+                                {!modoAcumulado && <>
+                                    <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold whitespace-nowrap">Corte Operativo</span>
+                                    <select className="p-2 text-sm bg-zinc-900 rounded border border-zinc-800 w-full md:w-auto outline-none text-[#5dbd8c] font-bold" value={periodoActivo} onChange={e => setPeriodoActivo(e.target.value)}>
+                                        {periodos.length === 0 && <option>{periodoActivo}</option>}
+                                        {periodos.map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                </>}
+                                <button onClick={() => setModoAcumulado(!modoAcumulado)} className="flex items-center gap-0 bg-zinc-900 border border-zinc-800 rounded-full p-0.5 transition-colors hover:border-zinc-700 flex-shrink-0">
+                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all ${!modoAcumulado ? 'bg-[#5dbd8c] text-black' : 'text-zinc-500'}`}>Período</span>
+                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all ${modoAcumulado ? 'bg-[#5dbd8c] text-black' : 'text-zinc-500'}`}>Acum.</span>
+                                </button>
                             </div>
                         </div>
                         {availableTipos.length > 0 && (
@@ -533,17 +569,23 @@
                     {/* ── Donut interactivo + Categorías ── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="glass-card p-6 flex flex-col items-center">
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 w-full text-left flex items-center gap-2 flex-wrap">
-                                Distribución de Gastos
-                                {filtroCategorias.length > 0 && (
-                                    <button onClick={() => { setFiltroCategorias([]); setPieSelected(null); }} className="text-[9px] bg-[#3d8068]/20 text-[#5dbd8c] px-2 py-0.5 rounded hover:bg-rose-500/20 hover:text-rose-400 transition-colors">
-                                        <IconClose /> {filtroCategorias.length} selecc.
-                                    </button>
-                                )}
-                            </h3>
-                            {categoriasData.length === 0 || totalGastoView === 0 ? (
+                            <div className="flex justify-between items-center mb-4 w-full">
+                                <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2 flex-wrap">
+                                    Distribución
+                                    {filtroCategorias.length > 0 && (
+                                        <button onClick={() => { setFiltroCategorias([]); setPieSelected(null); }} className="text-[9px] bg-[#3d8068]/20 text-[#5dbd8c] px-2 py-0.5 rounded hover:bg-rose-500/20 hover:text-rose-400 transition-colors">
+                                            <IconClose /> {filtroCategorias.length} selecc.
+                                        </button>
+                                    )}
+                                </h3>
+                                <button onClick={() => setDonutModo(donutModo === 'gasto' ? 'ingreso' : 'gasto')} className="flex items-center gap-0 bg-zinc-900 border border-zinc-800 rounded-full p-0.5 transition-colors hover:border-zinc-700">
+                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all ${donutModo === 'gasto' ? 'bg-[#5dbd8c] text-black' : 'text-zinc-500'}`}>Gasto</span>
+                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all ${donutModo === 'ingreso' ? 'bg-[#5dbd8c] text-black' : 'text-zinc-500'}`}>Ingreso</span>
+                                </button>
+                            </div>
+                            {donutData.length === 0 || donutTotal === 0 ? (
                                 <div className="w-48 h-48 md:w-56 md:h-56 rounded-full flex items-center justify-center" style={{background:'#111'}}>
-                                    <span className="text-zinc-600 text-xs">Sin datos</span>
+                                    <span className="text-zinc-600 text-xs">Sin {donutModo === 'gasto' ? 'gastos' : 'ingresos'}</span>
                                 </div>
                             ) : (
                                 <div className="relative">
@@ -589,12 +631,12 @@
                                         })() : filtroCategorias.length > 1 ? (
                                             <>
                                                 <text x="100" y="96" textAnchor="middle" className="text-[11px] font-bold fill-[#5dbd8c]" style={{fontFamily:'JetBrains Mono,monospace'}}>{filtroCategorias.length} cats</text>
-                                                <text x="100" y="112" textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>{formatoMoneda(totalGastoView)}</text>
+                                                <text x="100" y="112" textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>{formatoMoneda(donutTotal)}</text>
                                             </>
                                         ) : (
                                             <>
-                                                <text x="100" y="96" textAnchor="middle" className="text-[11px] font-bold fill-white" style={{fontFamily:'JetBrains Mono,monospace'}}>{formatoMoneda(totalGastoView)}</text>
-                                                <text x="100" y="112" textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>Total</text>
+                                                <text x="100" y="96" textAnchor="middle" className="text-[11px] font-bold fill-white" style={{fontFamily:'JetBrains Mono,monospace'}}>{formatoMoneda(donutTotal)}</text>
+                                                <text x="100" y="112" textAnchor="middle" className="text-[8px] fill-zinc-500" style={{fontFamily:'JetBrains Mono,monospace'}}>{donutModo === 'gasto' ? 'Total Gastos' : 'Total Ingresos'}</text>
                                             </>
                                         )}
                                     </svg>
@@ -603,9 +645,10 @@
                         </div>
                         <div className="glass-card p-6 overflow-y-auto max-h-80">
                             <div className="space-y-1">
-                                {categoriasParaRender.map((catObj, i) => {
+                                {donutCategoriasRender.map((catObj, i) => {
                                     const cat = catObj.nombre; const gastado = catObj.total;
-                                    if (gastado === 0 && !currentPresupuesto[cat]) return null;
+                                    if (gastado === 0 && donutModo === 'gasto' && !currentPresupuesto[cat]) return null;
+                                    if (gastado === 0 && donutModo === 'ingreso') return null;
                                     const catActive = filtroCategorias.length === 0 || filtroCategorias.includes(cat);
                                     const catDimmed = filtroCategorias.length > 0 && !filtroCategorias.includes(cat);
                                     return (
@@ -678,12 +721,44 @@
                                     </div>
                                 </div>
 
-                                {/* Categorías */}
-                                {allCategories.length > 0 && (
+                                {/* Tipo de Gasto */}
+                                {allTipoGasto.length > 0 && (
                                     <div>
-                                        <p className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold mb-2">Categorías</p>
+                                        <p className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold mb-2">Tipo de Gasto</p>
                                         <div className="flex flex-wrap gap-1.5">
-                                            {allCategories.map(cat => {
+                                            {allTipoGasto.map(tipo => {
+                                                const isActive = advTipoGasto.includes(tipo);
+                                                return (
+                                                    <button key={tipo} onClick={() => setAdvTipoGasto(prev => isActive ? prev.filter(t => t !== tipo) : [...prev, tipo])}
+                                                        className={`px-2.5 py-1 text-[9px] font-bold uppercase rounded-full transition-all border ${isActive ? 'bg-[#5dbd8c] text-black border-[#5dbd8c]' : 'bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>{tipo}</button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Categorías Gasto */}
+                                {allCategoriesGasto.length > 0 && (
+                                    <div>
+                                        <p className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold mb-2">Categorías — Gasto</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {allCategoriesGasto.map(cat => {
+                                                const isActive = advCategories.includes(cat);
+                                                return (
+                                                    <button key={cat} onClick={() => setAdvCategories(prev => isActive ? prev.filter(c => c !== cat) : [...prev, cat])}
+                                                        className={`px-2.5 py-1 text-[9px] font-bold uppercase rounded-full transition-all border ${isActive ? 'bg-[#5dbd8c] text-black border-[#5dbd8c]' : 'bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>{cat}</button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Categorías Ingreso */}
+                                {allCategoriesIngreso.length > 0 && (
+                                    <div>
+                                        <p className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold mb-2">Categorías — Ingreso</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {allCategoriesIngreso.map(cat => {
                                                 const isActive = advCategories.includes(cat);
                                                 return (
                                                     <button key={cat} onClick={() => setAdvCategories(prev => isActive ? prev.filter(c => c !== cat) : [...prev, cat])}
@@ -728,7 +803,7 @@
 
                                 {/* Acciones */}
                                 <div className="flex gap-2 pt-2 border-t border-zinc-800/50">
-                                    <button onClick={() => { setAdvDateFrom(''); setAdvDateTo(''); setAdvAmountMin(''); setAdvAmountMax(''); setAdvCategories([]); setAdvAccounts([]); setAdvTags([]); }}
+                                    <button onClick={() => { setAdvDateFrom(''); setAdvDateTo(''); setAdvAmountMin(''); setAdvAmountMax(''); setAdvCategories([]); setAdvAccounts([]); setAdvTags([]); setAdvTipoGasto([]); }}
                                         className="flex-1 px-4 py-2 text-[10px] font-bold uppercase rounded border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 transition-all">
                                         <span className="flex items-center justify-center gap-1.5">
                                             <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
