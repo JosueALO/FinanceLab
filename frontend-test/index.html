@@ -647,7 +647,18 @@
                     } else {
                         const aporte = viewScope === 'Compartido' ? mParcial : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi));
                         const isGasto = l.Tipo_Operacion === 'Gasto';
-                        rows.push({ ...l, _key: l.ID_Unico, _cuenta: l.Cuenta_Origen, _amount: isGasto ? -aporte : aporte, _color: isGasto ? 'text-rose-400' : 'text-[#5dbd8c]', _parcial: aporte, _total: mTotal });
+                        // Tag abreviado del tipo de gasto
+                        let _tipoTag = '';
+                        if (isGasto && l.Tipo_Gasto) {
+                            const tg = l.Tipo_Gasto;
+                            if (tg.includes('Personal')) _tipoTag = 'Per';
+                            else if (tg.includes('Compartido')) _tipoTag = '50/50';
+                            else if (tg.includes('Proporcional')) {
+                                const m = tg.match(/\((\d+)/(\d+)\)/);
+                                _tipoTag = m ? `${m[1]}/${m[2]}` : 'Prop';
+                            }
+                        }
+                        rows.push({ ...l, _key: l.ID_Unico, _cuenta: l.Cuenta_Origen, _amount: isGasto ? -aporte : aporte, _color: isGasto ? 'text-rose-400' : 'text-[#5dbd8c]', _parcial: aporte, _total: mTotal, _tipoTag });
                     }
                 });
                 rows.sort((a, b) => { const ta = a._sortTS || 0, tb = b._sortTS || 0; if (ta !== tb) return tb - ta; return (a._regTS || 0) - (b._regTS || 0); });
@@ -998,24 +1009,25 @@
                                         return (
                                             <div key={row._key} tabIndex="0" className="flex items-center py-2.5 px-3 hover:bg-zinc-900/50 group transition-colors relative cursor-default">
                                                 {/* Left: Account + Date */}
-                                                <div className="w-24 md:w-28 flex-shrink-0 flex flex-col">
+                                                <div className="w-[22%] md:w-[18%] flex-shrink-0 flex flex-col min-w-0">
                                                     <span className="text-[10px] text-zinc-400 truncate font-medium">{row._cuenta}</span>
                                                     <span className="text-[8px] text-zinc-600 font-mono">{row.Fecha_Compra}</span>
                                                 </div>
                                                 
-                                                {/* Middle: Concept + Category/Subcategory */}
-                                                <div className="flex-1 min-w-0 px-2 md:px-3">
-                                                    <div className="flex items-center gap-2">
+                                                {/* Middle: Concept + Category + Type badges */}
+                                                <div className="flex-1 min-w-0 px-3 md:px-4">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
                                                         <span className="text-[11px] text-zinc-200 truncate font-medium">{row.Compra}</span>
                                                         {isTransfer && <span className="text-[8px] border border-indigo-500/30 px-1.5 py-0.5 rounded text-indigo-400 uppercase flex-shrink-0">Transf</span>}
                                                         {row.Tipo_Operacion === 'Gasto' && <span className="text-[8px] border border-rose-500/30 px-1.5 py-0.5 rounded text-rose-400 uppercase flex-shrink-0">Gasto</span>}
                                                         {row.Tipo_Operacion === 'Ingreso' && <span className="text-[8px] border border-[#5dbd8c]/30 px-1.5 py-0.5 rounded text-[#5dbd8c] uppercase flex-shrink-0">Ingreso</span>}
+                                                        {row._tipoTag && <span className="text-[8px] bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono flex-shrink-0">{row._tipoTag}</span>}
                                                     </div>
                                                     <div className="text-[9px] text-zinc-500 truncate">{row.MacroCategoria}{row.MacroCategoria && row.Categoria ? ' › ' : ''}{row.Categoria}</div>
                                                 </div>
                                                 
-                                                {/* Right: Amount + Parcial */}
-                                                <div className="text-right flex-shrink-0 ml-2">
+                                                {/* Right: Amount + Ticket */}
+                                                <div className="text-right flex-shrink-0 w-[25%] md:w-[20%] min-w-[80px]">
                                                     <div className={`text-[12px] font-mono font-bold ${row._color}`}>
                                                         {row._amount < 0 ? '-' : ''}{formatoMoneda(Math.abs(row._amount))}
                                                     </div>
@@ -1025,7 +1037,7 @@
                                                 </div>
 
                                                 {/* Hover actions */}
-                                                <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1.5 ml-2 flex-shrink-0">
+                                                <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1.5 ml-1 flex-shrink-0">
                                                     <button onClick={() => onEdit(row)} className="text-zinc-500 hover:text-[#5dbd8c] p-1" title="Editar"><IconEdit /></button>
                                                     {deletingLog === row.ID_Unico ? (
                                                         <div className="flex gap-1 bg-black p-1 rounded border border-rose-500/50">
