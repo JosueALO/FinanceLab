@@ -206,35 +206,48 @@
             const [showPicker, setShowPicker] = useState(false);
             const [pickMonth, setPickMonth] = useState(new Date().getMonth() + 1);
             const [pickYear, setPickYear] = useState(new Date().getFullYear());
+            const [openMonthDrop, setOpenMonthDrop] = useState(false);
+            const [openYearDrop, setOpenYearDrop] = useState(false);
             const ref = useRef(null);
+            const monthRef = useRef(null);
+            const yearRef = useRef(null);
+            
             useEffect(() => {
-                const h = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setShowPicker(false); } };
+                const h = (e) => {
+                    if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setShowPicker(false); }
+                };
                 if (open) document.addEventListener('mousedown', h);
                 return () => document.removeEventListener('mousedown', h);
             }, [open]);
+            // Cerrar dropdowns de mes/año al click fuera
+            useEffect(() => {
+                const h = (e) => {
+                    if (monthRef.current && !monthRef.current.contains(e.target)) setOpenMonthDrop(false);
+                    if (yearRef.current && !yearRef.current.contains(e.target)) setOpenYearDrop(false);
+                };
+                document.addEventListener('mousedown', h);
+                return () => document.removeEventListener('mousedown', h);
+            }, []);
             
             const parseP = (p) => { const [d,m,y] = p.split('/').map(Number); return new Date(y, m-1, d); };
             const actual = getPeriodoActual();
             const fechaActual = parseP(actual);
             const idxActual = periodos.indexOf(periodoActivo);
-            // Encontrar dónde cae 'actual' en periodos (puede no existir si no hay transacciones este mes)
-            let idxHoy = periodos.findIndex(p => parseP(p) >= fechaActual);
-            if (idxHoy === -1) idxHoy = periodos.length; // todos son pasados
+            
+            // Dividir en pasados (antes de hoy) y futuros (hoy en adelante)
+            const pasados = periodos.filter(p => parseP(p) < fechaActual);
+            const futuros = periodos.filter(p => parseP(p) >= fechaActual);
             
             const DEFAULT_WINDOW = 4;
-            const pastStart = showMorePast ? 0 : Math.max(0, idxActual - DEFAULT_WINDOW);
-            const futureEnd = showMoreFuture ? periodos.length : Math.min(periodos.length, idxActual + DEFAULT_WINDOW + 1);
-            const visiblePeriods = periodos.slice(pastStart, futureEnd);
-            const hiddenPast = pastStart > 0;
-            const hiddenFuture = futureEnd < periodos.length;
+            const pastSlice = showMorePast ? pasados : pasados.slice(Math.max(0, pasados.length - DEFAULT_WINDOW));
+            const futureSlice = showMoreFuture ? futuros : futuros.slice(0, DEFAULT_WINDOW);
+            const hiddenPastCount = pasados.length - pastSlice.length;
+            const hiddenFutureCount = futuros.length - futureSlice.length;
 
-            // Helper: buscar período por mes/año
             const buscarPeriodo = (mes, año) => {
-                // Buscar el último día del mes seleccionado en periodos
                 const ultimoDia = new Date(año, mes, 0).getDate();
                 const target = `${String(ultimoDia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${año}`;
                 if (periodos.includes(target)) return target;
-                // Buscar cualquier período que caiga en ese mes
                 const found = periodos.find(p => {
                     const [,m,y] = p.split('/').map(Number);
                     return m === mes && y === año;
@@ -245,6 +258,7 @@
             const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
             const añoMin = Math.min(new Date().getFullYear() - 3, ...periodos.map(p => parseInt(p.split('/')[2]) || 9999));
             const añoMax = Math.max(new Date().getFullYear() + 3, ...periodos.map(p => parseInt(p.split('/')[2]) || 0));
+            const años = Array.from({length: añoMax - añoMin + 1}, (_,i) => añoMin + i);
 
             return (
                 <div className="relative" ref={ref}>
@@ -255,53 +269,86 @@
                     </button>
                     {open && (
                         <div className="absolute top-full left-0 mt-1.5 w-64 bg-[#0f0f0f] border border-zinc-800 rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden fade-in">
-                            {/* Header: ir a actual + lupa */}
                             <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800/50">
                                 <button onClick={() => { setPeriodoActivo(actual); setOpen(false); }} className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-[#5dbd8c] transition-colors">
                                     <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                    Actual
+                                    Hoy
                                 </button>
-                                <button onClick={() => setShowPicker(!showPicker)} className={`flex items-center gap-1 text-[10px] transition-colors ${showPicker ? 'text-[#5dbd8c]' : 'text-zinc-500 hover:text-zinc-300'}`} title="Buscar mes/año">
+                                <button onClick={() => setShowPicker(!showPicker)} className={`flex items-center gap-1 text-[10px] transition-colors ${showPicker ? 'text-[#5dbd8c]' : 'text-zinc-500 hover:text-zinc-300'}`}>
                                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                                     Buscar
                                 </button>
                             </div>
-                            {/* Month/Year picker */}
                             {showPicker && (
-                                <div className="px-3 py-2 border-b border-zinc-800/50 bg-zinc-900/30 flex items-center gap-2">
-                                    <select value={pickMonth} onChange={e => setPickMonth(Number(e.target.value))} className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-300 outline-none flex-1">
-                                        {meses.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
-                                    </select>
-                                    <select value={pickYear} onChange={e => setPickYear(Number(e.target.value))} className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-300 outline-none w-20">
-                                        {Array.from({length: añoMax - añoMin + 1}, (_,i) => añoMin + i).map(y => <option key={y} value={y}>{y}</option>)}
-                                    </select>
-                                    <button onClick={() => { const p = buscarPeriodo(pickMonth, pickYear); setPeriodoActivo(p); setOpen(false); setShowPicker(false); }} className="bg-[#5dbd8c] text-black px-2.5 py-1 rounded text-[10px] font-bold hover:bg-white transition-colors">Ir</button>
+                                <div className="px-3 py-2.5 border-b border-zinc-800/50 bg-zinc-900/30 flex items-center gap-2">
+                                    {/* Mes: dropdown in-app */}
+                                    <div className="relative flex-1" ref={monthRef}>
+                                        <button onClick={() => { setOpenMonthDrop(!openMonthDrop); setOpenYearDrop(false); }} className="w-full bg-zinc-800 border border-zinc-700 rounded px-2.5 py-1.5 text-[11px] text-zinc-200 text-left flex items-center justify-between hover:border-zinc-600 transition-colors">
+                                            {meses[pickMonth-1]}
+                                            <svg className="w-3 h-3 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                        </button>
+                                        {openMonthDrop && (
+                                            <div className="absolute top-full left-0 mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-50 max-h-36 overflow-y-auto custom-scroll">
+                                                {meses.map((m,i) => (
+                                                    <button key={m} onClick={() => { setPickMonth(i+1); setOpenMonthDrop(false); }} className={`w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-zinc-700 transition-colors ${pickMonth === i+1 ? 'text-[#5dbd8c] font-bold' : 'text-zinc-300'}`}>{m}</button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* Año: dropdown in-app */}
+                                    <div className="relative w-20" ref={yearRef}>
+                                        <button onClick={() => { setOpenYearDrop(!openYearDrop); setOpenMonthDrop(false); }} className="w-full bg-zinc-800 border border-zinc-700 rounded px-2.5 py-1.5 text-[11px] text-zinc-200 text-left flex items-center justify-between hover:border-zinc-600 transition-colors">
+                                            {pickYear}
+                                            <svg className="w-3 h-3 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                        </button>
+                                        {openYearDrop && (
+                                            <div className="absolute top-full left-0 mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-50 max-h-36 overflow-y-auto custom-scroll">
+                                                {años.map(y => (
+                                                    <button key={y} onClick={() => { setPickYear(y); setOpenYearDrop(false); }} className={`w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-zinc-700 transition-colors ${pickYear === y ? 'text-[#5dbd8c] font-bold' : 'text-zinc-300'}`}>{y}</button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <button onClick={() => { const p = buscarPeriodo(pickMonth, pickYear); setPeriodoActivo(p); setOpen(false); setShowPicker(false); }} className="bg-[#5dbd8c] text-black px-3 py-1.5 rounded text-[10px] font-bold hover:bg-white transition-colors flex-shrink-0">Ir</button>
                                 </div>
                             )}
-                            {/* Lista de períodos */}
                             <div className="max-h-56 overflow-y-auto custom-scroll">
-                                {hiddenPast && (
-                                    <button onClick={() => setShowMorePast(!showMorePast)} className="w-full text-left px-3 py-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition-colors border-b border-zinc-800/30">
-                                        {showMorePast ? '▲ Contraer pasados' : `▼ ${pastStart} meses anteriores...`}
+                                {/* ── Pasados ── */}
+                                {pasados.length > 0 && (
+                                    <div className="text-[9px] text-zinc-600 uppercase tracking-wider px-3 pt-2 pb-1 font-bold">Pasados</div>
+                                )}
+                                {hiddenPastCount > 0 && (
+                                    <button onClick={() => setShowMorePast(!showMorePast)} className="w-full text-left px-3 py-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition-colors">
+                                        {showMorePast ? '▲ Contraer' : `▼ ${hiddenPastCount} más...`}
                                     </button>
                                 )}
-                                {visiblePeriods.map(p => {
+                                {pastSlice.map(p => {
                                     const isActive = p === periodoActivo;
                                     const isCurrent = p === actual;
-                                    const fechaP = parseP(p);
-                                    const isPast = fechaP < fechaActual;
                                     return (
                                         <button key={p} onClick={() => { setPeriodoActivo(p); setOpen(false); }} className={`w-full text-left px-3 py-1.5 flex items-center justify-between transition-colors ${isActive ? 'bg-[#5dbd8c]/15 border-l-2 border-[#5dbd8c]' : 'hover:bg-zinc-900/50 border-l-2 border-transparent'}`}>
-                                            <span className={`text-[11px] font-mono ${isActive ? 'text-[#5dbd8c] font-bold' : isCurrent ? 'text-white font-semibold' : isPast ? 'text-zinc-500' : 'text-zinc-400'}`}>{p}</span>
-                                            <span className="text-[8px] text-zinc-600">
-                                                {isCurrent ? 'Actual' : isActive ? 'Selecc.' : ''}
-                                            </span>
+                                            <span className={`text-[11px] font-mono ${isActive ? 'text-[#5dbd8c] font-bold' : isCurrent ? 'text-white font-semibold' : 'text-zinc-500'}`}>{p}</span>
+                                            <span className="text-[8px] text-zinc-600">{isCurrent ? 'Actual' : isActive ? 'Selecc.' : ''}</span>
                                         </button>
                                     );
                                 })}
-                                {hiddenFuture && (
-                                    <button onClick={() => setShowMoreFuture(!showMoreFuture)} className="w-full text-left px-3 py-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition-colors border-t border-zinc-800/30">
-                                        {showMoreFuture ? '▲ Contraer futuros' : `▼ ${periodos.length - futureEnd} meses próximos/MSI...`}
+                                {/* ── Futuros ── */}
+                                {futuros.length > 0 && (
+                                    <div className="text-[9px] text-zinc-600 uppercase tracking-wider px-3 pt-2 pb-1 font-bold border-t border-zinc-800/30">Futuros</div>
+                                )}
+                                {futureSlice.map(p => {
+                                    const isActive = p === periodoActivo;
+                                    const isCurrent = p === actual;
+                                    return (
+                                        <button key={p} onClick={() => { setPeriodoActivo(p); setOpen(false); }} className={`w-full text-left px-3 py-1.5 flex items-center justify-between transition-colors ${isActive ? 'bg-[#5dbd8c]/15 border-l-2 border-[#5dbd8c]' : 'hover:bg-zinc-900/50 border-l-2 border-transparent'}`}>
+                                            <span className={`text-[11px] font-mono ${isActive ? 'text-[#5dbd8c] font-bold' : isCurrent ? 'text-white font-semibold' : 'text-zinc-400'}`}>{p}</span>
+                                            <span className="text-[8px] text-zinc-600">{isCurrent ? 'Actual' : isActive ? 'Selecc.' : ''}</span>
+                                        </button>
+                                    );
+                                })}
+                                {hiddenFutureCount > 0 && (
+                                    <button onClick={() => setShowMoreFuture(!showMoreFuture)} className="w-full text-left px-3 py-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition-colors">
+                                        {showMoreFuture ? '▲ Contraer' : `▼ ${hiddenFutureCount} más...`}
                                     </button>
                                 )}
                             </div>
