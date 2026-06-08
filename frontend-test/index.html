@@ -593,9 +593,8 @@
             const [advTipoGasto, setAdvTipoGasto] = useState([]);
 
             const getPeriodoActual = () => { const hoy = new Date(); let m = hoy.getMonth(), a = hoy.getFullYear(); if (hoy.getDate() > 19) m += 1; const u = new Date(a, m + 1, 0); return `${String(u.getDate()).padStart(2, '0')}/${String(u.getMonth() + 1).padStart(2, '0')}/${u.getFullYear()}`; };
-            const [hiddenTipos, setHiddenTipos] = useState([]);
             const [modoAcumulado, setModoAcumulado] = useState(false);
-            useEffect(() => { setHiddenTipos([]); setFiltroCategorias([]); }, [viewScope, periodoActivo]);
+            useEffect(() => { setFiltroCategorias([]); }, [viewScope, periodoActivo]);
 
             const logsGlobal = useMemo(() => modoAcumulado ? rawLogs : rawLogs.filter(l => l.Periodo_Pago === periodoActivo), [rawLogs, periodoActivo, modoAcumulado]);
             const logsGrafico = useMemo(() => logsGlobal.filter(l => {
@@ -606,9 +605,6 @@
                 if (filtroCategorias.length > 0 && !filtroCategorias.includes(l.Categoria)) return false;
                 return false;
             }), [logsGlobal, viewScope, filtroCategorias]);
-
-            const availableTipos = useMemo(() => [...new Set(logsGrafico.map(l => l.Tipo_Gasto))], [logsGrafico]);
-            const logsGraficoFiltrado = useMemo(() => logsGrafico.filter(l => !hiddenTipos.includes(l.Tipo_Gasto)), [logsGrafico, hiddenTipos]);
 
             // ── Datos para búsqueda avanzada ──
             const allCategories = useMemo(() => [...new Set(logsGlobal.map(l => l.Categoria).filter(Boolean))].sort(), [logsGlobal]);
@@ -658,7 +654,7 @@
                 return rows;
             }, [logsGlobal, viewScope, filtroCategorias, busquedaDebounced, advCategories, advAccounts, advTags, advTipoGasto, advDateFrom, advDateTo, advAmountMin, advAmountMax]);
 
-            const totalGastoView = logsGraficoFiltrado.reduce((acc, l) => acc + (viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi))), 0);
+            const totalGastoView = logsGrafico.reduce((acc, l) => acc + (viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi))), 0);
 
             // ── Datos de Ingresos para donut ──
             const logsGraficoIngresos = useMemo(() => logsGlobal.filter(l => {
@@ -680,12 +676,12 @@
 
             const categoriasData = useMemo(() => {
                 let map = {};
-                logsGraficoFiltrado.forEach(l => {
+                logsGrafico.forEach(l => {
                     let amt = viewScope === 'Compartido' ? Number(l.Monto_Parcial) : (viewScope === 'Josue' ? Number(l.Participacion_Josue) : Number(l.Participacion_Abi));
                     if (amt > 0) map[l.Categoria] = (map[l.Categoria] || 0) + amt;
                 });
                 return Object.keys(map).map(k => ({ nombre: k, total: map[k] })).sort((a,b) => b.total - a.total);
-            }, [logsGraficoFiltrado, viewScope]);
+            }, [logsGrafico, viewScope]);
 
             const currentPresupuesto = presupuesto[viewScope] || {};
 
@@ -738,14 +734,6 @@
                                 </button>
                             </div>
                         </div>
-                        {availableTipos.length > 0 && (
-                            <div className="border-t border-zinc-800/50 pt-3 flex flex-wrap gap-2 items-center fade-in">
-                                {availableTipos.map(tipo => {
-                                    const isActive = !hiddenTipos.includes(tipo);
-                                    return <button key={tipo} onClick={() => { if (isActive) setHiddenTipos([...hiddenTipos, tipo]); else setHiddenTipos(hiddenTipos.filter(t => t !== tipo)); }} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-full transition-all border ${isActive ? 'bg-[#5dbd8c] text-black border-[#5dbd8c]' : 'bg-transparent border-zinc-800 text-zinc-600'}`}>{tipo}</button>
-                                })}
-                            </div>
-                        )}
                     </div>
 
                     {/* ── Donut interactivo + Categorías ── */}
