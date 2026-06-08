@@ -1007,37 +1007,37 @@
                                     {(() => { const start = (currentPage - 1) * pageSize; const page = sortedLogs.slice(start, start + pageSize); return page.map((row, idx) => {
                                         const isTransfer = row.Tipo_Operacion === 'Transferencia';
                                         return (
-                                            <div key={row._key} tabIndex="0" className="flex items-center py-2.5 px-2 md:px-3 hover:bg-zinc-900/50 group transition-colors relative cursor-default">
+                                            <div key={row._key} tabIndex="0" className="flex items-center py-2.5 px-1.5 md:px-3 hover:bg-zinc-900/50 group transition-colors relative cursor-default">
                                                 {/* Left: Account + Date */}
-                                                <div className="w-[18%] md:w-28 flex-shrink-0 flex flex-col min-w-0">
-                                                    <span className="text-[10px] text-zinc-400 truncate font-medium">{row._cuenta}</span>
-                                                    <span className="text-[8px] text-zinc-600 font-mono truncate">{row.Fecha_Compra}</span>
+                                                <div className="w-16 md:w-28 flex-shrink-0 flex flex-col min-w-0">
+                                                    <span className="text-[9px] md:text-[10px] text-zinc-400 truncate font-medium">{row._cuenta}</span>
+                                                    <span className="text-[7px] md:text-[8px] text-zinc-600 font-mono">{row.Fecha_Compra}</span>
                                                 </div>
                                                 
-                                                {/* Middle: Concept + Category + badges inline */}
-                                                <div className="flex-1 min-w-0 px-2 md:px-4">
+                                                {/* Middle: Concept + Category + badges */}
+                                                <div className="flex-1 min-w-0 px-1.5 md:px-4">
                                                     <div className="flex items-center gap-1 md:gap-1.5 min-w-0">
                                                         <span className="text-[10px] md:text-[11px] text-zinc-200 truncate font-medium">{row.Compra}</span>
-                                                        {isTransfer && <span className="text-[7px] md:text-[8px] border border-indigo-500/30 px-1 md:px-1.5 py-0.5 rounded text-indigo-400 uppercase flex-shrink-0 leading-none">Transf</span>}
-                                                        {row.Tipo_Operacion === 'Gasto' && <span className="text-[7px] md:text-[8px] border border-rose-500/30 px-1 md:px-1.5 py-0.5 rounded text-rose-400 uppercase flex-shrink-0 leading-none">Gasto</span>}
-                                                        {row.Tipo_Operacion === 'Ingreso' && <span className="text-[7px] md:text-[8px] border border-[#5dbd8c]/30 px-1 md:px-1.5 py-0.5 rounded text-[#5dbd8c] uppercase flex-shrink-0 leading-none">Ingreso</span>}
-                                                        {row._tipoTag && <span className="text-[7px] md:text-[8px] border border-rose-500/30 px-1 md:px-1.5 py-0.5 rounded text-rose-400 font-mono flex-shrink-0 leading-none">{row._tipoTag}</span>}
+                                                        {isTransfer && <span className="text-[7px] md:text-[8px] border border-indigo-500/30 px-1 py-0.5 rounded text-indigo-400 uppercase flex-shrink-0 leading-none">Transf</span>}
+                                                        {row.Tipo_Operacion === 'Gasto' && <span className="text-[7px] md:text-[8px] border border-rose-500/30 px-1 py-0.5 rounded text-rose-400 uppercase flex-shrink-0 leading-none">Gasto</span>}
+                                                        {row.Tipo_Operacion === 'Ingreso' && <span className="text-[7px] md:text-[8px] border border-[#5dbd8c]/30 px-1 py-0.5 rounded text-[#5dbd8c] uppercase flex-shrink-0 leading-none">Ingreso</span>}
+                                                        {row._tipoTag && <span className="text-[7px] md:text-[8px] border border-rose-500/30 px-1 py-0.5 rounded text-rose-400 font-mono flex-shrink-0 leading-none">{row._tipoTag}</span>}
                                                     </div>
                                                     <div className="text-[8px] md:text-[9px] text-zinc-500 truncate">{row.MacroCategoria}{row.MacroCategoria && row.Categoria ? ' › ' : ''}{row.Categoria}</div>
                                                 </div>
                                                 
-                                                {/* Right: Amount + Ticket */}
-                                                <div className="text-right flex-shrink-0 ml-2 min-w-[65px] md:w-28">
+                                                {/* Right: Amount */}
+                                                <div className="text-right flex-shrink-0 ml-1 md:ml-2 min-w-[60px] md:w-28">
                                                     <div className={`text-[11px] md:text-[12px] font-mono font-bold leading-tight ${row._color}`}>
                                                         {row._amount < 0 ? '-' : ''}{formatoMoneda(Math.abs(row._amount))}
                                                     </div>
-                                                    <div className="text-[8px] md:text-[9px] text-zinc-500 font-mono leading-tight truncate">
+                                                    <div className="text-[8px] md:text-[9px] text-zinc-500 font-mono leading-tight">
                                                         {row._total !== row._parcial ? `T ${formatoMoneda(row._total)}` : formatoMoneda(row._parcial)}
                                                     </div>
                                                 </div>
 
-                                                {/* Hover actions */}
-                                                <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1 md:gap-1.5 ml-1 flex-shrink-0">
+                                                {/* Hover actions — absolute en móvil para no ocupar espacio */}
+                                                <div className="hidden md:flex opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity gap-1.5 ml-1 flex-shrink-0">
                                                     <button onClick={() => onEdit(row)} className="text-zinc-500 hover:text-[#5dbd8c] p-1" title="Editar"><IconEdit /></button>
                                                     {deletingLog === row.ID_Unico ? (
                                                         <div className="flex gap-1 bg-black p-1 rounded border border-rose-500/50">
