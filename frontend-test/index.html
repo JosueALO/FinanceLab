@@ -828,7 +828,7 @@
                                             style={{opacity: catDimmed ? 0.35 : 1, transition:'opacity 0.25s ease'}}
                                         >
                                             <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor: gastado > 0 ? COLORES_PASTEL[i % COLORES_PASTEL.length] : '#333'}}></span><span className={`${catDimmed ? 'text-zinc-600' : 'text-zinc-400'} truncate max-w-[140px]`}>{cat}</span></div>
-                                            <span className={`font-mono ${catDimmed ? 'text-zinc-600' : 'text-[#5dbd8c]'}`}>{formatoMoneda(gastado)}</span>
+                                            <span className={`font-mono ${catDimmed ? 'text-zinc-600' : 'text-[#5dbd8c]'}`}>{formatoMoneda(gastado)} <span className="text-[8px] text-zinc-500 ml-1">{donutTotal > 0 ? (gastado/donutTotal*100).toFixed(1) : 0}%</span></span>
                                         </div>
                                     );
                                 })}
@@ -1822,7 +1822,7 @@
                                         </svg>
                                     </div>
                                     <div className="w-full mt-3 space-y-1 max-h-40 overflow-y-auto custom-scroll">
-                                        {catData.map((cat,i) => (<div key={cat.nombre} className="flex justify-between items-center text-[10px] px-2 py-1 rounded hover:bg-zinc-900/50 cursor-pointer" onMouseEnter={()=>setPieHover(i)} onMouseLeave={()=>setPieHover(null)}><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:COLORES_PASTEL[i%COLORES_PASTEL.length]}}></span><span className="text-zinc-400 truncate max-w-[140px]">{cat.nombre}</span></div><span className="font-mono text-[#5dbd8c]">{formatoMoneda(cat.total)}</span></div>))}
+                                        {catData.map((cat,i) => (<div key={cat.nombre} className="flex justify-between items-center text-[10px] px-2 py-1 rounded hover:bg-zinc-900/50 cursor-pointer" onMouseEnter={()=>setPieHover(i)} onMouseLeave={()=>setPieHover(null)}><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:COLORES_PASTEL[i%COLORES_PASTEL.length]}}></span><span className="text-zinc-400 truncate max-w-[140px]">{cat.nombre}</span></div><span className="font-mono text-[#5dbd8c]">{formatoMoneda(cat.total)} <span className="text-[8px] text-zinc-500 ml-1">{catTotal > 0 ? (cat.total/catTotal*100).toFixed(1) : 0}%</span></span></div>))}
                                     </div>
                                 </div>
                             )}
