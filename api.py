@@ -138,14 +138,18 @@ def _get_app_data(_=None):
 
         # ── cuentas ──
         cur.execute("""
-            SELECT nombre, tipo, propietario, saldo_inicial, dia_corte
+            SELECT id, nombre, tipo, propietario, saldo_inicial, dia_corte,
+                   limite_credito, fecha_vencimiento
             FROM cuentas WHERE activo ORDER BY tipo, nombre
         """)
         cuentas = [{
+            "id": r["id"],
             "nombre": r["nombre"], "tipo": r["tipo"],
             "propietario": r["propietario"],
             "saldoInicial": _fmt_num(r["saldo_inicial"]),
             "diaCorte": r["dia_corte"] or "",
+            "limiteCredito": _fmt_num(r["limite_credito"]) if r["limite_credito"] else "",
+            "fechaVencimiento": r["fecha_vencimiento"] or "",
         } for r in cur.fetchall()]
 
         # ── rawLogs (unified query, SQL-formatted dates) ──
@@ -309,13 +313,12 @@ def _parse_form(p):
 
 def _calc_splits(monto, tipo_gasto, pct_j, pct_a):
     """Calcula participaciones según tipo de gasto."""
+    if "Proporcional" in tipo_gasto:
+        pj = round(monto * pct_j / 100, 2) if pct_j else 0
+        return pj, round(monto - pj, 2)
     if "Compartido" in tipo_gasto:
-        if "50/50" in tipo_gasto:
-            half = round(monto / 2, 2)
-            return half, round(monto - half, 2)
-        elif "Proporcional" in tipo_gasto:
-            pj = round(monto * pct_j / 100, 2) if pct_j else 0
-            return pj, round(monto - pj, 2)
+        half = round(monto / 2, 2)
+        return half, round(monto - half, 2)
     if "Personal Josué" in tipo_gasto:
         return monto, 0
     if "Personal Ab" in tipo_gasto:
@@ -397,6 +400,16 @@ def _grabar_operacion(p, id_unico=None):
 
         if f["es_rec"]:
             rec_id = id_unico or str(_gen_uuid(cur))
+            # Si es edición de un gasto que vino de un recordatorio lanzado,
+            # actualizar ESE recordatorio original en vez de crear uno nuevo
+            if id_unico:
+                cur.execute("SELECT id_unico FROM recordatorios WHERE gasto_id = %s", (id_unico,))
+                orig = cur.fetchone()
+                if orig:
+                    rec_id = orig[0]  # usar el ID del recordatorio original
+                # Limpiar FK antes de borrar el gasto
+                cur.execute("UPDATE recordatorios SET gasto_id = NULL WHERE gasto_id = %s", (id_unico,))
+                cur.execute("DELETE FROM gastos WHERE id_unico = %s", (id_unico,))
             cur.execute("""
                 INSERT INTO recordatorios (id_unico, fecha_programada, registrador_id,
                     compra, categoria_id, macro_categoria_id, monto_parcial,
@@ -416,6 +429,7 @@ def _grabar_operacion(p, id_unico=None):
                     tipo_gasto_id=EXCLUDED.tipo_gasto_id,
                     participacion_josue=EXCLUDED.participacion_josue,
                     participacion_abi=EXCLUDED.participacion_abi,
+                    lanzado=false, gasto_id=NULL, lanzado_fecha=NULL,
                     updated_at=now()
             """, (rec_id, f["fecha_compra"], ids["registradores"],
                   f["compra"], ids["categorias"], ids["macro_categorias"], monto,
@@ -482,7 +496,26 @@ def _eliminar_gasto(payload):
         return fail("ID requerido")
     with get_db() as conn:
         cur = conn.cursor()
+        cur.execute("DELETE FROM recordatorios WHERE gasto_id = %s", (target_id,))
         cur.execute("SELECT soft_delete_gasto(%s, %s)", (target_id, "Josué"))
+        cur.close()
+    return ok({"deleted": target_id})
+
+
+# ═══ ELIMINAR RECORDATORIO ═══
+
+@route("eliminarRecordatorio")
+def _eliminar_recordatorio(payload):
+    target_id = payload if isinstance(payload, str) else (payload.get("ID_Unico") or payload.get("id_unico"))
+    if not target_id:
+        return fail("ID requerido")
+    with get_db() as conn:
+        cur = conn.cursor()
+        # Si el recordatorio fue lanzado, eliminar también el gasto asociado
+        cur.execute("SELECT gasto_id FROM recordatorios WHERE id_unico = %s", (target_id,))
+        row = cur.fetchone()
+        if row and row[0]:
+            cur.execute("SELECT soft_delete_gasto(%s, %s)", (str(row[0]), "Josué"))
         cur.execute("DELETE FROM recordatorios WHERE id_unico = %s", (target_id,))
         cur.close()
     return ok({"deleted": target_id})
@@ -512,21 +545,61 @@ def _guardar_cuentas(payload):
         return fail("Se espera lista de cuentas")
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("UPDATE cuentas SET activo = false")
+        # ── Snapshot de cuentas activas existentes ──
+        cur.execute("SELECT id, nombre FROM cuentas WHERE activo")
+        rows = cur.fetchall()
+        existing_by_id = {r[0]: r[1] for r in rows}
+        existing_by_name = {r[1]: r[0] for r in rows}
+        processed_ids = set()
+
         for c in payload:
             nombre = (c.get("nombre") or "").strip()
             if not nombre:
                 continue
+            tipo = c.get("tipo", "Activo")
+            propietario = c.get("propietario", "Josué")
+            saldo = float(c.get("saldoInicial", c.get("saldo_inicial", 0)))
             dia = int(c["diaCorte"]) if c.get("diaCorte") and int(c.get("diaCorte", 0)) > 0 else None
-            cur.execute("""
-                INSERT INTO cuentas (nombre, tipo, propietario, saldo_inicial, dia_corte, activo)
-                VALUES (%s,%s,%s,%s,%s,true)
-                ON CONFLICT (nombre) DO UPDATE SET
-                    tipo=EXCLUDED.tipo, propietario=EXCLUDED.propietario,
-                    saldo_inicial=EXCLUDED.saldo_inicial, dia_corte=EXCLUDED.dia_corte,
-                    activo=true, updated_at=now()
-            """, (nombre, c.get("tipo", "Activo"), c.get("propietario", "Josué"),
-                  float(c.get("saldoInicial", c.get("saldo_inicial", 0))), dia))
+            limite = float(c["limiteCredito"]) if c.get("limiteCredito") and float(c.get("limiteCredito", 0)) > 0 else None
+            vencimiento = int(c["fechaVencimiento"]) if c.get("fechaVencimiento") and int(c.get("fechaVencimiento", 0)) > 0 else None
+
+            acct_id = c.get("id")
+            if acct_id and acct_id in existing_by_id:
+                # ── Update por ID (preserva referencias en transacciones) ──
+                cur.execute("""
+                    UPDATE cuentas SET nombre=%s, tipo=%s, propietario=%s,
+                        saldo_inicial=%s, dia_corte=%s, limite_credito=%s,
+                        fecha_vencimiento=%s, activo=true, updated_at=now()
+                    WHERE id=%s
+                """, (nombre, tipo, propietario, saldo, dia, limite, vencimiento, acct_id))
+                processed_ids.add(acct_id)
+            elif nombre in existing_by_name:
+                # ── Update por nombre (fallback: datos viejos sin ID) ──
+                old_id = existing_by_name[nombre]
+                cur.execute("""
+                    UPDATE cuentas SET nombre=%s, tipo=%s, propietario=%s,
+                        saldo_inicial=%s, dia_corte=%s, limite_credito=%s,
+                        fecha_vencimiento=%s, activo=true, updated_at=now()
+                    WHERE id=%s
+                """, (nombre, tipo, propietario, saldo, dia, limite, vencimiento, old_id))
+                processed_ids.add(old_id)
+            else:
+                # ── Nueva cuenta ──
+                cur.execute("""
+                    INSERT INTO cuentas (nombre, tipo, propietario, saldo_inicial,
+                        dia_corte, limite_credito, fecha_vencimiento, activo)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,true)
+                """, (nombre, tipo, propietario, saldo, dia, limite, vencimiento))
+
+        # ── Desactivar cuentas que ya no están en el payload ──
+        if processed_ids:
+            cur.execute(
+                "UPDATE cuentas SET activo=false WHERE activo=true AND id != ALL(%s)",
+                (list(processed_ids),)
+            )
+        else:
+            cur.execute("UPDATE cuentas SET activo=false")
+
         cur.close()
     return ok({"saved": len(payload)})
 
